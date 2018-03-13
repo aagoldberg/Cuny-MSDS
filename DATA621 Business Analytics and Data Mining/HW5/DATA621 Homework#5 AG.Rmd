@@ -1,0 +1,379 @@
+---
+title: 'DATA621 - Homework #5 (Wine)'
+author: "Blandon Casenave"
+date: "4/29/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**ABSTRACT**
+
+Our goal is to build a model that will predict the number of wine cases sold, based on properties of the wine itself and its brand. Given that we cannot have a negative number of wine cases sold, and that we're only talking about whole cases (integers) - then we must use a Count Regression for our predictive model. 
+  
+There are some constraints that we have to work within given the type of model we're trying to construct. For example, although log and square root transformations are work well in removing the skew from some variables, they are not appropriate to use on count data sets. Further, we'll also see that even in cases of over dispersion Poisson models perform similarly to the Negative Binomial distribution (NB).
+
+After using a variety of imputation and diagnostics (AIC, MSE, Psuedo R-Squared), we were able to select a final model and produce statisically equal results between our training and test data sets.
+
+**DATA EXPLORATION**
+
+Our training data set consists of nearly thirteen thousand observations (n = 12,795), with fifteen independent variables and one count response variable. Our first order of business is to indentify any missing data, and determine what if any methods of imputation will be used to clean our data. From there, we gather a preliminary look at the linear correlations that may exist between each of our explanatory variables and our response, as well as among themselves via a correlation matrix. 
+
+The variables in our model that were missing data are Residual Sugar (616), Chlorides (638), FreeSulfurDioxode (647), Total SulfurDioxide(682), pH(395), Sulphates (1210), Alcohol (653) and STARS (3359). For the variables that contained missing data, all except one had missing cases in less than 10% of cases. STARS is the one variable that has missing cases in over 10% of its observations, with 26%, and it is also a count data set (in this case it also a categorical variable of the ordinal type). 
+
+Given the similar expected outcomes for Label Appeal and STARS, it was decided that we should use it as a means of imputing missing values. We first ran a chi-squared distribution to verify the relationship between these two categorical variables, and the p-value (2.2e-16) tells us that we can reject the null hypothesis - indicating that there is a relationship between Label Appeal and STARS. 
+
+A custom function was created to impute a value for STARS, based on the mode response associated with each value of Label Appeal, for example a label appeal value of "-1", had the a mode STARS repsonse of "1", and so on. 
+
+
+**DATA PREPARATION**
+
+As previously mentioned, we deployed a method of imputation that involved using the mean for numeric/integer data and mode for categorical data. The mean values remained largely unchanged for our numeric data points, before and after imputation (good sign). For our STARS variable the mean shifted only slightly from 2.042 to 1.945, no statisical difference given that the standard deviation is .8. 
+
+After imputing missing cases, we're able to see from our correlation matrxix that the parameters with the relatively strongest relationship to our target variable are STARS & Label Appeal. Which makes intuitive sense, but of course this alone doesn't value for us in building out a predictive model. 
+
+In addition to summary stats, plots and histograms were used to understand the distribution and skew of the variables in our model. The majority of our variables were normally distributed with only slight skews. 
+
+However, one variable, Acid Index, had siginificant right skew. A log transformation does actually remove the skew from this variable, however log or sqrt transformation only introduces bias in count data sets, and are to be avoided. We will further discuss the implications of a Count Data set in our following "Build Model" section. 
+
+The same transformations applied to our training data set, were also applied to out test/eval data.
+
+**BUILD MODEL**
+
+The response model in our data set meets the criteria for Count Data, non-continous discrete numbers, that only have positive values. Although we ran a glm model against the data set that yields expected and significant results, we cannot use it because it is the wrong model type. Specifically, the assumptions of normal distribution, and the dispersion around zero are violated when we have a data set that has no non-negative numbers. 
+
+Regarding the theoretical assumptions and criteria for choosing between the Poisson and Negative Binomial models, it largely centers around the fit our response variable. Generally speaking, if the mean and variance are equal (and of course with non-negative numbers), then Poisson distribution is best suited for handling this data set. However, if we have a case of overdispersion, and the variance is larger than the mean then the Negative Binomial (NB) distribution is best. In our case the mean of our response variable is 3.02, and the variance is 3.71 - indicating that technically the NB model should work best. However, we'll see later if there is in fact an practical implication for our specific data set. 
+
+In addition to our response variable, two other variables in our model can be classified as count data sets - Acid Index and STARS. It's worth mentioning that although the variable LabelAppeal contains discrete values, it does have negative values - and therefore will not be interpreted as count data.  
+
+There were two approaches deployed to determine the final forms of our models - manual and functioned based selections, optimized against the AIC metric. In this case, both methods netted the same variables for our linear, Poisson and Negative Binomial (NB) models. For our manual methods, we started with a full model and then removed variables that were not statisically significant.  
+
+In all cases, the same variables remained in our final models, regardless of the chosen distribution. FixedAcidity & Residual Sugar were the two variables that fell out of our linear model, with p-values above our .05 threshold. The final stepAIC model yielded the same variables, coffecientsand t-values that our manual lm() model produced. Again, it should be noted that we cannot use a linear model for our predictive model for the reasons stated earlier.  
+
+In our Poisson model, the same two variables (FixedAcidity & Residual Sugar) that fell out of our lm() model also fell out of this one with p-values of about .35 for each of them. The process was again repeated for the NB models. 
+
+There was very little difference betweem the final Poisson and NB models, largely because the Poisson distribution is a special case of the NB distribution, and also probably due to the fact that the mean and variance were close to each other.  
+
+We didn't see any instances of coefficient signs changing as we moved between various model types, indicating that even our glm model performed well. 
+
+**SELECT MODELS & INSIGHTS**
+
+The MSE between our Poisson and NB models were very virtually the same (4898.16 vs. 4898.18), and the AIC values are also close (50060 vs. 50062). Finally the pseudo R-squared was .21 for both models - indicating virtually the same fit on our training data set. 
+
+However, given the uncertainty of future data sets and the possibility for even greater overdispersion - we decided to use the NB distribution for our training and test data predictions. The mean prediction for our target variable in the training data set is 3.02 (matching the mean of the provided target variable), while in the evaluation set it's 3.09 - indicating that we have chosen an appropriate predictive model. 
+
+**DATA EXPLORATION APPENDIX (CODE)**
+```{r, echo=TRUE, warning=FALSE}
+library(dtplyr)
+library(caret)
+library(pROC)
+library(MASS)
+library(data.table)
+
+#please connect to wifi
+wineeval <- "https://raw.githubusercontent.com/Misterresearch/CUNY-Projects/master/wine-evaluation-data.csv"
+
+winetraining <-"https://raw.githubusercontent.com/Misterresearch/CUNY-Projects/master/wine-training-data.csv"
+  
+wineeval <- read.table(file = wineeval, header = TRUE, sep = ",", na.strings = c("","NA"))
+
+winetraining <- read.table(file = winetraining, header = TRUE, sep = ",", na.strings = c("","NA"))
+sum(is.na(winetraining$INDEX))
+sum(is.na(winetraining$TARGET))
+sum(is.na(winetraining$FixedAcidity))
+sum(is.na(winetraining$VolatileAcidity))
+sum(is.na(winetraining$CitricAcid))
+sum(is.na(winetraining$ResidualSugar))
+sum(is.na(winetraining$Chlorides))
+sum(is.na(winetraining$FreeSulfurDioxide))
+sum(is.na(winetraining$TotalSulfurDioxide))
+sum(is.na(winetraining$Density))
+sum(is.na(winetraining$pH))
+sum(is.na(winetraining$Sulphates))
+sum(is.na(winetraining$Alcohol))
+sum(is.na(winetraining$LabelAppeal))
+sum(is.na(winetraining$AcidIndex))
+sum(is.na(winetraining$STARS))
+
+
+#linear correlation Matrix
+winematrix<- cor(winetraining)
+round(winematrix,2)
+
+#correlarion to target
+winetb <- data.table(winematrix, keep.rownames = TRUE)
+winetb[,c(1,3)]
+
+#linearity check between STARS & Label
+cor(winetraining$STARS, winetraining$LabelAppeal, use = "na.or.complete")
+
+summary(winetraining)
+
+#Chi Sq check between STARS & Label
+chisq.test(winetraining$STARS, winetraining$LabelAppeal)
+
+```
+
+**DATA PREPARATION (CODE)**
+```{r, echo=FALSE}
+#ResidualSugar, FreeSulfur, TotalSulfur, ph, Alcohol, 
+winetraining$ResidualSugar[is.na(winetraining$ResidualSugar)] <- mean(winetraining$ResidualSugar, na.rm = TRUE)
+mean(winetraining$ResidualSugar)
+winetraining$Chlorides[is.na(winetraining$Chlorides)] <- mean(winetraining$Chlorides, na.rm = TRUE)
+mean(winetraining$Chlorides)
+
+winetraining$FreeSulfurDioxide[is.na(winetraining$FreeSulfurDioxide)] <- mean(winetraining$FreeSulfurDioxide, na.rm = TRUE)
+mean(winetraining$FreeSulfurDioxide)
+
+winetraining$TotalSulfurDioxide[is.na(winetraining$TotalSulfurDioxide)] <- mean(winetraining$TotalSulfurDioxide, na.rm = TRUE)
+mean(winetraining$TotalSulfurDioxide)
+
+
+winetraining$pH[is.na(winetraining$pH)] <- mean(winetraining$pH, na.rm = TRUE)
+mean(winetraining$pH)
+winetraining$Sulphates[is.na(winetraining$Sulphates)] <- mean(winetraining$Sulphates, na.rm = TRUE)
+mean(winetraining$Sulphates)
+
+winetraining$Alcohol[is.na(winetraining$Alcohol)] <- mean(winetraining$Sulphates, na.rm = TRUE)
+mean(winetraining$Alcohol)
+
+
+#categorical impputation
+myImpute <- function (x) {
+ mymode <- names(sort(table(winetraining$STARS[which(winetraining$LabelAppeal==x)]), decreasing = TRUE)[1])
+return(mymode)
+}
+
+#Mode for STARS response for Label Appeal
+myImpute("-2")
+myImpute("-1")
+myImpute("0")
+myImpute("1")
+myImpute("2")
+
+#Categorial JOB imputation
+winetraining$STARS[(is.na(winetraining$STARS) & winetraining$LabelAppeal == "-2")] <- myImpute("-2")
+
+winetraining$STARS[(is.na(winetraining$STARS) & winetraining$LabelAppeal == "-1")] <- myImpute("-1")
+
+winetraining$STARS[(is.na(winetraining$STARS) & winetraining$LabelAppeal == "0")] <- myImpute("0")
+
+winetraining$STARS[(is.na(winetraining$STARS) & winetraining$LabelAppeal == "1")] <- myImpute("1")
+
+winetraining$STARS[(is.na(winetraining$STARS) & winetraining$LabelAppeal == "2")] <- myImpute("2")
+winetraining$STARS<-as.numeric(winetraining$STARS)
+
+#wine imputation summary
+summary(winetraining)
+
+#post imputation correlation
+winematrix<- cor(winetraining)
+round(winematrix,2)
+
+#post imputation correlation to target
+winetb <- data.table(winematrix, keep.rownames = TRUE)
+winetb[,c(1,3)]
+```
+We see the strongest correlations to the target variable focus on retail and marketing aspects such as `STARS` and `LabelAppeal`, as well as the general acidity of the wine, measured by `AcidIndex`. 
+
+```{r}
+par(mar=c(1,1,1,1))
+par(mfrow=c(9,3))
+hist(winetraining$TARGET, cex.main=.7)
+hist(winetraining$FixedAcidity,cex.main=.7 )
+hist(winetraining$VolatileAcidity, cex.main=.7)
+hist(winetraining$CitricAcid, cex.main=.7)
+hist(winetraining$ResidualSugar, cex.main=.7)
+hist(winetraining$Chlorides, cex.main=.7)
+hist(winetraining$FreeSulfurDioxide,cex.main=.7)
+hist(winetraining$TotalSulfurDioxide,cex.main=.7)
+hist(winetraining$Density,cex.main=.7)
+hist(winetraining$pH,cex.main=.7)
+hist(winetraining$Sulphates,cex.main=.7)
+hist(winetraining$Alcohol,cex.main=.7)
+hist(winetraining$LabelAppeal,cex.main=.7)
+hist(winetraining$AcidIndex,cex.main=.7)
+hist(winetraining$STARS, cex.main=.7)
+
+#log transformation, not used for Count Data
+#winetraining$AcidIndex<-log(winetraining$AcidIndex)
+
+```
+
+
+**TEST DATA TRANSFORMATION APPENDIX (CODE)**
+
+```{r,echo=FALSE}
+#ResidualSugar, FreeSulfur, TotalSulfur, ph, Alcohol, 
+wineeval$ResidualSugar[is.na(wineeval$ResidualSugar)] <- mean(wineeval$ResidualSugar, na.rm = TRUE)
+mean(wineeval$ResidualSugar)
+wineeval$Chlorides[is.na(wineeval$Chlorides)] <- mean(wineeval$Chlorides, na.rm = TRUE)
+mean(wineeval$Chlorides)
+
+wineeval$FreeSulfurDioxide[is.na(wineeval$FreeSulfurDioxide)] <- mean(wineeval$FreeSulfurDioxide, na.rm = TRUE)
+mean(wineeval$FreeSulfurDioxide)
+
+wineeval$TotalSulfurDioxide[is.na(wineeval$TotalSulfurDioxide)] <- mean(wineeval$TotalSulfurDioxide, na.rm = TRUE)
+mean(wineeval$TotalSulfurDioxide)
+
+
+wineeval$pH[is.na(wineeval$pH)] <- mean(wineeval$pH, na.rm = TRUE)
+mean(wineeval$pH)
+wineeval$Sulphates[is.na(wineeval$Sulphates)] <- mean(wineeval$Sulphates, na.rm = TRUE)
+mean(wineeval$Sulphates)
+
+wineeval$Alcohol[is.na(wineeval$Alcohol)] <- mean(wineeval$Sulphates, na.rm = TRUE)
+mean(wineeval$Alcohol)
+
+
+#categorical impputation
+myImpute <- function (x) {
+ mymode <- names(sort(table(wineeval$STARS[which(wineeval$LabelAppeal==x)]), decreasing = TRUE)[1])
+return(mymode)
+}
+
+#Mode for STARS response for Label Appeal
+myImpute("-2")
+myImpute("-1")
+myImpute("0")
+myImpute("1")
+myImpute("2")
+
+#Categorial JOB imputation
+wineeval$STARS[(is.na(wineeval$STARS) & wineeval$LabelAppeal == "-2")] <- myImpute("-2")
+
+wineeval$STARS[(is.na(wineeval$STARS) & wineeval$LabelAppeal == "-1")] <- myImpute("-1")
+
+wineeval$STARS[(is.na(wineeval$STARS) & wineeval$LabelAppeal == "0")] <- myImpute("0")
+
+wineeval$STARS[(is.na(wineeval$STARS) & wineeval$LabelAppeal == "1")] <- myImpute("1")
+
+wineeval$STARS[(is.na(wineeval$STARS) & wineeval$LabelAppeal == "2")] <- myImpute("2")
+wineeval$STARS<-as.numeric(wineeval$STARS)
+
+#wineeval$AcidIndex<-log(wineeval$AcidIndex)
+summary(wineeval)
+```
+
+No log, square or box-cox transformations needed, all variables except for Target, LabelAppeal and STARS are normally distributed. However tranformations of Target, LabelAppeal and STARS is required. 
+
+
+**BUILD MODEL APPENDIX (CODE)**
+
+###Full Multiple Linear Regression
+```{r, echo=FALSE, warning=FALSE}
+
+#Full Multiple Linear Regression
+lmx <-as.matrix(cbind(winetraining[c(3:16)]))
+lmy <-as.matrix(cbind(winetraining[2]))
+lmwine <- lm(lmy ~ lmx)
+summary(lmwine)
+```
+
+###Selected Stepwise Multiple Linear Regression
+```{r, echo=FALSE, warning=FALSE}
+lmxA <-as.matrix(cbind(winetraining[c(4,5,7:16)]))
+lmyA <-as.matrix(cbind(winetraining[2]))
+lmwineA <- lm(lmyA ~ lmxA)
+summary(lmwineA)
+
+lmwinestep <- lm(TARGET ~ FixedAcidity + VolatileAcidity + CitricAcid + ResidualSugar + Chlorides + FreeSulfurDioxide + TotalSulfurDioxide + Density + pH + Sulphates + Alcohol + LabelAppeal + AcidIndex + STARS, data = winetraining)
+
+#step(lmwinestep, direction = c("both", "backward", "forward"))
+
+lmwine.step <-lm(formula = TARGET ~ VolatileAcidity + CitricAcid + Chlorides + 
+    FreeSulfurDioxide + TotalSulfurDioxide + Density + pH + Sulphates + 
+    Alcohol + LabelAppeal + AcidIndex + STARS, data = winetraining)
+summary(lmwine.step)
+```
+###Manual Full Poisson Model
+```{r, echo=FALSE, warning=FALSE}
+poissonx <-as.matrix(cbind(winetraining[c(3:16)]))
+poissony <-as.matrix(cbind(winetraining[2]))
+poissonwine <- glm(poissony ~ poissonx, family=poisson(link = "log"))
+summary(poissonwine)
+```
+
+###Manually Selected Poisson Model
+```{r, echo=FALSE, warning=FALSE}
+poissonxA <-as.matrix(cbind(winetraining[c(4,5,7:16)]))
+poissonyA <-as.matrix(cbind(winetraining[2]))
+poissonwineA <- glm(poissonyA ~ poissonxA, family=poisson(link = "log"))
+summary(poissonwineA)
+```
+
+###Stepwise Poisson Model
+```{r, echo=FALSE, warning=FALSE}
+poissonwinestep <- glm(TARGET ~ FixedAcidity + VolatileAcidity + CitricAcid + ResidualSugar + Chlorides + FreeSulfurDioxide + TotalSulfurDioxide + Density + pH + Sulphates + Alcohol + LabelAppeal + AcidIndex + STARS, data = winetraining, family = poisson(link = "log"))
+
+#stepAIC(poissonwinestep, direction = c("both", "backward", "forward"))
+```
+###AIC Final model 
+```{r, echo=FALSE, warning=FALSE}
+poissonwine.AIC <-glm(TARGET ~ VolatileAcidity + CitricAcid + Chlorides + FreeSulfurDioxide + 
+    TotalSulfurDioxide + Density + pH + Sulphates + Alcohol + 
+    LabelAppeal + AcidIndex + STARS, data = winetraining, family = poisson(link = "log"))
+
+summary(poissonwine.AIC)
+1 - (poissonwine.AIC$deviance/poissonwine.AIC$null.deviance)
+```
+
+#Full NB Model
+```{r, echo=FALSE, warning=FALSE}
+nbx <-as.matrix(cbind(winetraining[c(3:16)]))
+nby <-as.matrix(cbind(winetraining[2]))
+nbwine <- glm.nb(nby ~ nbx)
+summary(nbwine)
+```
+
+#Selected Step NB Model
+```{r, echo=FALSE, warning=FALSE}
+nbxA <-as.matrix(cbind(winetraining[c(4,5,7:16)]))
+nbyA <-as.matrix(cbind(winetraining[2]))
+nbwineA <- glm.nb(nbyA ~ nbxA)
+summary(nbwineA)
+
+nbwinestep <- glm.nb(TARGET ~ FixedAcidity + VolatileAcidity + CitricAcid + ResidualSugar + Chlorides + FreeSulfurDioxide + TotalSulfurDioxide + Density + pH + Sulphates + Alcohol + LabelAppeal + AcidIndex + STARS, data = winetraining, link = "log")
+
+stepAIC(nbwinestep, direction = c("both", "backward", "forward"))
+
+nbwine.AIC <- glm.nb(formula = TARGET ~ VolatileAcidity + CitricAcid + Chlorides + 
+    FreeSulfurDioxide + TotalSulfurDioxide + Density + pH + Sulphates + 
+    Alcohol + LabelAppeal + AcidIndex + STARS, data = winetraining, 
+    init.theta = 40474.38263, link = "log")
+summary(nbwine.AIC)
+1 - (nbwine.AIC$deviance/nbwine.AIC$null.deviance)
+```
+
+**SELECT MODEL APPENDIX (CODE)**
+```{r, echo=TRUE}
+#MSE
+mean(sum(poissonwine.AIC$residuals^2))
+mean(sum(nbwine.AIC$residuals^2))
+
+#Psuedo R-Squared
+1-(poissonwine.AIC$deviance/poissonwine.AIC$null.deviance)
+1-(nbwine.AIC$deviance/nbwine.AIC$null.deviance)
+
+logit.prob=predict(nbwine.AIC, type = "response")
+logit.pred=ifelse(logit.prob>=0.5,"1","0")
+winetraining$prob <- logit.prob
+logit.prob<-as.numeric(logit.prob)
+winetraining$prob <- round(winetraining$prob, digits = 0)
+
+
+logit.evalprob<-predict(nbwine.AIC, wineeval, type = "response")
+logit.evalprob<-as.numeric(logit.evalprob)
+wineeval$prob<-logit.evalprob
+wineeval$prob <- round(wineeval$prob, digits = 0)
+
+mean(winetraining$prob)
+
+mean(wineeval$prob)
+```
+Source: \href{http://stats.idre.ucla.edu/r/dae/negative-binomial-regression/}{Negative Binomial Regression}
+
+Source: \href{http://onlinelibrary.wiley.com/doi/10.1111/j.2041-210X.2010.00021.x/full} {Do Not Log Transform Count Data}
+
+Source: \href{https://stats.stackexchange.com/questions/60643/difference-between-binomial-negative-binomial-and-poisson-regression}{Difference between binomial, negative binomial and Poisson regression}

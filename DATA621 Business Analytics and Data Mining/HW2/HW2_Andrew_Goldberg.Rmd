@@ -1,0 +1,166 @@
+---
+title: "HW2_Andrew_Goldberg"
+author: "Andrew Goldberg"
+date: "3/11/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r import}
+classData <- read.csv("https://raw.githubusercontent.com/aagoldberg/Data-621-Regression/master/classification-output-data.csv")
+summary(classData)
+length(classData$pregnant)
+library(ggplot2)
+library(dplyr)
+library(pROC)
+```
+
+#####Use table() function to get the raw confusion matrix
+```{r confusion matrix}
+useData <- classData[9:11]
+
+table(useData[2:1])
+
+#rows = actual class, columns = predicted class
+```
+
+#####Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the accuracy of the predictions. 
+```{r accuracy}
+is.data.frame(useData)
+
+accFunc <- function(classDF){
+  truePos <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 1])
+  trueNeg <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 0])
+  falsePos <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 1])
+  falseNeg <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 0])
+  accRes <- (truePos+trueNeg) / (truePos + trueNeg + falsePos + falseNeg)
+  return(accRes)
+}
+
+```
+####Write a function that returns the classification error rate of the predictions. Verify that accuracy plus error rate sum to 1. 
+```{r classification error rate}
+classErrFunc <- function(classDF){
+  truePos <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 1])
+  trueNeg <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 0])
+  falsePos <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 1])
+  falseNeg <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 0])
+  classErrRes <- (falsePos + falseNeg) / (truePos + trueNeg + falsePos + falseNeg)
+  return(classErrRes)
+}
+
+sum(accFunc(useData), classErrFunc(useData)) == 1
+```
+####Write a function that returns the precision of the predictions.
+```{r precision}
+precFunc <- function(classDF){
+  truePos <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 1])
+  trueNeg <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 0])
+  falsePos <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 1])
+  falseNeg <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 0])
+  precRes <- (truePos) / (truePos + falsePos)
+  return(precRes)
+}
+```
+
+####Write a function that returns the sensitivity of the predictions.
+```{r sensitivity}
+sensFunc <- function(classDF){
+  truePos <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 1])
+  trueNeg <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 0])
+  falsePos <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 1])
+  falseNeg <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 0])
+  sensRes <- (truePos) / (truePos + falseNeg)
+  return(sensRes)
+}
+```
+
+####Write a function that returns the sensitivity of the predictions.
+```{r specificity}
+specFunc <- function(classDF){
+  truePos <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 1])
+  trueNeg <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 0])
+  falsePos <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 1])
+  falseNeg <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 0])
+  specRes <- (trueNeg) / (trueNeg + falsePos)
+  return(specRes)
+}
+```
+
+####Write a function that returns the f1 score the predictions.
+```{r f1}
+f1Func <- function(classDF){
+  truePos <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 1])
+  trueNeg <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 0])
+  falsePos <- length(classDF$class[classDF$class == 0 & classDF$scored.class == 1])
+  falseNeg <- length(classDF$class[classDF$class == 1 & classDF$scored.class == 0])
+  precRes <- (truePos) / (truePos + falsePos)
+  sensRes <- (truePos) / (truePos + falseNeg)
+  f1Res <- (2*precRes*sensRes) / (precRes + sensRes)
+  return(f1Res)
+}
+```
+
+####Show that the F1 score wil always be between 0 and 1.
+If I'm understanding it correct, that assumption seems true in practice, but not theoretically, since its possible to have 100% true positives. If that were the case, then both precision and sensitivity would equal 1 and the f1 score would be: ((2 x 1 x 1) / 2) = 1. So 1 appears to be the upper bound. In practice, its highly unlikely to have 100% true positives, so the f1 score would rarely, if ever, reach 1. 
+
+Since there are no negative values in the calculations, the lower bound cannot go below 0, and will very likely be higher. However, if there's 100% false positives or 100% false negatives, you could actually get an undefined answer. 
+
+####Write a function that generates an ROC curve. 
+It should return a list that includes the plot of the ROC curve and a vector that contains the calculated area under the curve (AUC). Not that I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals. 
+```{r ROC curve}
+rocFunc <- function(classDF){
+  truePosRoc <- vector()
+  trueNegRoc <- vector()
+  falsePosRoc <- vector()
+  falseNegRoc <- vector()
+  threshProb <- vector()
+  thresh <- seq(0, 1, .01)
+  
+  for (i in 1:100){
+    threshProb[i] <- thresh[i]
+    truePosRoc[i] <- sum(classDF$class == 1 & classDF$scored.probability >= thresh[i])
+    trueNegRoc[i] <- sum(classDF$class == 0 & classDF$scored.probability < thresh[i])
+    falsePosRoc[i] <- sum(classDF$class == 0 & classDF$scored.probability >= thresh[i])
+    falseNegRoc[i] <- sum(classDF$class == 1 & classDF$scored.probability < thresh[i])
+    
+  }   
+  sensRoc <- truePosRoc / (truePosRoc + falseNegRoc)
+  specRoc <- trueNegRoc / (trueNegRoc + falsePosRoc)
+  plotData <- as.data.frame(sensRoc, specRoc)
+  g <- ggplot(plotData, aes((1 - specRoc), sensRoc)) + geom_step()
+  uac <- sensRoc * specRoc
+  return(list(g, sum(uac), uac) )
+}
+```
+
+####Produce all of the previous classification metrics
+```{r}
+accFunc(useData)
+classErrFunc(useData)
+precFunc(useData)
+sensFunc(useData)
+specFunc(useData)
+f1Func(useData)
+rocFunc(useData)
+```
+
+####Investigate the caret package. In particular, consider the functions confusionMatrix, sensitivity, and specificity. Compare the results.
+```{r caret}
+library(caret)
+table(useData$class, useData$scored.class)
+xtable <- table(useData$scored.class, useData$class)
+confusionMatrix(xtable, positive = "1") #same results!
+```
+
+####Investigate the pROC package. Use it to generate a ROC curve and compare. 
+```{r pROC}
+plot.roc(useData$class, useData$scored.probability)
+#pretty similar !
+```
+

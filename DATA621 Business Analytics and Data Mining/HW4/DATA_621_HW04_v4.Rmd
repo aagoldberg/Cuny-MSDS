@@ -1,0 +1,801 @@
+---
+title: "Multiple Linear and Binary Logistic Regression"
+author: "Blandon Casenove, Andrew Goldberg, Jose Zuniga"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+
+In this homework assignment, you will explore, analyze and model a data set containing approximately 8000 records representing a customer at an auto insurance company. Each record has two response variables. The first response variable, `TARGET_FLAG`, is a 1 or a 0. A "1" means that the person was in a car crash. A zero means that the person was not in a car crash. The second response variable is `TARGET_AMT`. This value is zero if the person did not crash their car. But if they did crash their car, this number will be a value greater than zero.
+
+Your objective is to build multiple linear regression and binary logistic regression models on the training data to predict the probability that a person will crash their car and also the amount of money it will cost if the person does crash their car. You can only use the variables given to you (or variables that you derive from the variables provided). Below is a short description of the variables of interest in the data set:
+
+|VARIABLE|DESCRIPTION         |THEORETICAL EFFECT                       |
+|:-------|:-------------------|:----------------------------------------|
+|`INDEX`      |Identification Variable (do not use)|None|
+|`TARGET_FLAG`|Was Car in a crash? 1=YES 0=NO|None|
+|`TARGET_AMT` |If car was in a crash, what was the cost|None|
+|`AGE`        |Age of Driver|Very young people tend to be risky; maybe very old people also|
+|`BLUEBOOK`   |Value of Vehicle|Unknown effect, but probably effect the payout if there is a crash|
+|`CAR_AGE`    |Vehicle Age|Unknown effect, but probably effect the payout if there is a crash|
+|`CAR_TYPE`   |Type of Car|Unknown effect, but probably effect the payout if there is a crash|
+|`CAR_USE`    |Vehicle Use|Commercial vehicles are driven more, so might increase probability of collision|
+|`CLM_FREQ`   |# Claims (Past 5 Years)|The more claims filed in the past, the more likely to file in the future|
+|`EDUCATION`  |Max Education Level|Unknown effect, but in theory more educated people tend to drive more safely
+|`HOMEKIDS`   |# Children at Home|Unknown effect|
+|`HOME_VAL`   |Home Value|In theory, home owners tend to drive more responsibly|
+|`INCOME`     |Income|In theory, rich people tend to get into fewer crashes|
+|`JOB`        |Job Category|In theory, white collar jobs tend to be safer|
+|`KIDSDRIV`   |# Driving Children|When teenagers drive a car, they are more likely to get into crashes|
+|`MSTATUS`    |Marital Status|In theory, married people drive more safely|
+|`MVR_PTS`    |Motor Vehicle Record Points|Drivers with lots of traffic tickets tend to get into more crashes|
+|`OLDCLAIM`   |Total Claims Past 5 Years|A high total payout over past five years suggests high future payouts|
+|`PARENT1`    |Single Parent|Unknown effect|
+|`RED_CAR`    |A Red Car|Urban legend says that red cars (especially red sports cars) are more risky|
+|`REVOKED`    |License Revoked Past 7 Years|If license revoked in past 7 years, driver is probably more risky|
+|`SEX`        |Gender|Urban legend says that women have less crashes then men|
+|`TIF`        |Time in Force|People who have been customers for a long time are usually more safe|
+|`TRAVTIME`   |Distance to Work|Long drives to work usually suggest greater risk|
+|`URBANICITY` |Home/Work Area|Unknown|
+|`YOJ`        |Years on Job|People who stay at a job for a long time are usually more safe|
+
+A write-up submitted in PDF format. Your write-up should have four sections. Each one is described below. You may assume you are addressing me as a fellow data scientist, so do not need to shy away from technical details. Assign predictions (probabilities, classifications, cost) to the evaluation data set. Use 0.5 threshold.
+  
+```{r cache=T}
+training <- read.csv(paste0("https://raw.githubusercontent.com/Misterresearch/",
+                "CUNY-Projects/master/insurance_training_data.csv"), na.strings = "")
+
+evaluation <- read.csv(paste0("https://raw.githubusercontent.com/Misterresearch/",
+                "CUNY-Projects/master/insurance-evaluation-data.csv"), na.strings = "")
+
+M <- rbind(training, evaluation) # Merged
+n <- nrow(training); # training is M[1:n, 4:26]
+m <- nrow(evaluation) # evaluation is M[(1+n):(m+n), ]
+X <- data.frame("TARGET_FLAG" = rep(T, ncol(M)), 
+                "TARGET_AMT" = rep(T, ncol(M)))
+X[match(c("INDEX", "TARGET_AMT"), names(M)), "TARGET_FLAG"] <- F
+X[match(c("INDEX", "TARGET_FLAG"), names(M)), "TARGET_AMT"] <- F
+```
+
+## Normalize Data
+
+```{r cache=T}
+quantitative <- c(4:8, 10, 15, 17, 18, 21, 22, 24, 25)
+names(M[quantitative])
+categorical <- c(13, 14, 19)
+names(M[categorical])
+binary <- c(9, 11, 12, 16, 20, 23, 26)
+names(M[binary])
+
+Currency_Convert <- function(Field){
+  Field <- as.numeric(gsub("\\$|,","", Field))
+}
+
+Binary_Convert <- function(Field, Neg, Pos) {
+  Field <- as.character(Field)
+  Field[which(Field == Neg)] <- 0
+  Field[which(Field == Pos)] <- 1
+  Field <- as.numeric(Field)
+}
+
+M$INCOME <- Currency_Convert(M$INCOME)
+M$PARENT1 <- Binary_Convert(M$PARENT1, "No", "Yes")
+M$HOME_VAL <- Currency_Convert(M$HOME_VAL)
+M$MSTATUS <- Binary_Convert(M$MSTATUS, "z_No", "Yes")
+M$SEX <- Binary_Convert(M$SEX, "M", "z_F")
+M$CAR_USE <- Binary_Convert(M$CAR_USE, "Commercial", "Private")
+M$BLUEBOOK <- Currency_Convert(M$BLUEBOOK)
+M$RED_CAR <- Binary_Convert(M$RED_CAR, "no", "yes")
+M$OLDCLAIM <- Currency_Convert(M$OLDCLAIM)
+M$REVOKED <- Binary_Convert(M$REVOKED, "No", "Yes")
+M$URBANICITY <- Binary_Convert(M$URBANICITY, "z_Highly Rural/ Rural", "Highly Urban/ Urban")
+
+M$CAR_AGE[which(M$CAR_AGE < 0)] <- NA
+M$HOME_VAL[which(M$HOME_VAL == 0)] <- NA
+```
+
+# Data Exploration
+
+Describe the size and the variables in the insurance training data set. Consider that too much detail will cause a manager to lose interest while too little detail will make the manager consider that you aren't doing your job. Some suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment. You should have your own thoughts on what to tell the boss. These are just ideas.
+
+  a. Mean / Standard Deviation / Median
+  b. Bar Chart or Box Plot of the data
+  c. Is the data correlated to the target variable (or to other variables?)
+  d. Are any of the variables missing and need to be imputed/"fixed"?
+
+```{r}
+library("DT")
+display <- function(data) {
+  datatable(data, options = list(
+    searching = TRUE,
+    pageLength = 5,
+    lengthMenu = c(5, nrow(data))
+    ), rownames = FALSE)
+}
+```
+
+## Numerical Summaries
+
+```{r}
+all(complete.cases(M[1:n, -1]))
+summary(M[1:n, -1])
+```
+
+Looking at the data summaries for the training dataset, we can see that several variables have notable amounts of NA's, with `YOJ` and `CAR_AGE` among the highest. We can also see multiple skewed variables with large maximums relative to their mean and median. Several variables are also currently use currency formatting or are categorical in nature. 
+
+## Variable Scatterplots
+
+```{r  cache=T}
+par(mfrow = c(4,4), cex=.4)
+for (i in c(quantitative, categorical)) { 
+  plot(M[1:n, i], main = names(M[i])) 
+}
+```
+
+Most of the nonbinary variables appear to approach normality.
+
+## Scatterplot Matrix
+
+```{r cache=T}
+plot(M[1:n, c(quantitative, categorical)])
+```
+
+Relationships exist between many of the quantitative variables.
+
+## Histograms, Density Plots
+
+```{r  cache=T}
+par(mfrow = c(2,4))
+for (i in c(quantitative, categorical)) {
+  if(is.numeric(M[1:n, i])) {
+    hist(M[1:n, i], xlab = names(M[i]), main = names(M[i]))
+    d <- density(M[1:n, i], na.rm=T)
+  }
+  else {
+    plot(M[1:n, i], xlab = names(M[i]), main = names(M[i]))
+    d <- density(as.numeric(M[1:n, i]), na.rm=T)
+  }
+  plot(d, main = names(M[i]))
+  polygon(d, col="red")
+}
+```
+
+The histograms and density plots give a better understanding of how the nonbinary data are distributed. The variables `INCOME`, `HOME_VAL`, `TRAVTIME`, and `BLUEBOOK` all have similar distributions in appearance with some notable skewing. `OLDCLAIM` is heavily skewed. The variables `YOJ` and `CAR_AGE` have multimodal distributions.
+
+## Correlation Heatmap
+
+```{r warning=F}
+library(ggplot2)
+library(reshape2)
+ggplot(data = melt(abs(cor(sapply(training, as.numeric)))), aes(x=Var1, y=Var2, fill=value)) +
+  scale_fill_gradient(low = 'black', high = 'red', name = "Absolute Value") +
+  geom_tile() + labs(title = "Correlation Heatmap") +
+  theme(axis.title.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 90, hjust = 1),
+        plot.title = element_text(hjust = 0.5))
+```
+
+Among the numerical variables, we don't see any particularly strong correlations between the response and predictor variables. 
+
+## Principle Component Analysis
+
+```{r warning=F}
+PCA <- function(X) {
+  Xpca <- prcomp(na.omit(X), center = T, scale. = T) 
+  M <- as.matrix(na.omit(X)); R <- as.matrix(Xpca$rotation); score <- M %*% R
+  print(list("Importance of Components" = summary(Xpca)$importance[ ,1:5], 
+             "Rotation (Variable Loadings)" = Xpca$rotation[ ,1:5],
+             "Correlation between X and PC" = cor(na.omit(X), score)[ ,1:5]))
+  par(mfrow=c(2,3))
+  barplot(Xpca$sdev^2, ylab = "Component Variance")
+  barplot(cor(cbind(X)), ylab = "Correlations")
+  barplot(Xpca$rotation, ylab = "Loadings")  
+  biplot(Xpca); barplot(M); barplot(score)
+}
+PCA(M[1:n, quantitative])
+```
+
+The main underlying component explaining the variance of the data appears to focus on economic wealth, highlighted by the importance of `INCOME`, `HOME_VAL`, `BLUEBOOK`, and `CAR_AGE`. 
+
+# Data Preparation
+
+Describe how you have transformed the data by changing the original variables or creating new variables. If you did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
+
+  a. Fix missing values (maybe with a Mean or Median value)
+  b. Create flags to suggest if a variable was missing
+  c. Transform data by putting it into buckets
+  d. Mathematical transforms such as log or square root (or, use Box-Cox)
+  e. Combine variables (such as ratios or adding or multiplying) to create new variables
+
+## Missing Value Imputation
+
+```{r warning=F, message=F}
+library(VIM)
+all(complete.cases(training))
+aggr(M[1:n, 4:26], bars=F, sortVars=T)
+```
+We have notable amounts of missing values in the `JOB`, `CAR_AGE`, `HOME_VAL`, `HOME_VAL`, `YOJ`, and `INCOME` variables. There is also a small amount of missing values in `AGE`.
+
+### Impute Jobs from Education
+
+```{r}
+Likely_Value <- function(Field_1, Field_2, Value) {
+  # Mode for Field_1 for given Value of Field_2
+  frequencies <- table(Field_1[which(Field_2 == Value)])
+  most_frequent <- names(sort(frequencies, decreasing = TRUE)[1])
+  return(most_frequent)
+}
+
+M$JOB[(is.na(M$JOB) & M$EDUCATION == "PhD")] <- Likely_Value(M$JOB, M$EDUCATION, "PhD")
+M$JOB[(is.na(M$JOB) & M$EDUCATION == "Masters")] <- Likely_Value(M$JOB, M$EDUCATION, "Masters")
+M$JOB[(is.na(M$JOB) & M$EDUCATION == "Bachelors")] <- Likely_Value(M$JOB, M$EDUCATION, "Bachelors")
+M$JOB[(is.na(M$JOB) & M$EDUCATION == "z_High School")] <- Likely_Value(M$JOB, M$EDUCATION, "z_High School")
+M$JOB[(is.na(M$JOB) & M$EDUCATION == "<High School")] <- Likely_Value(M$JOB, M$EDUCATION, "<High School")
+```
+
+### Impute Using Mice Package
+
+```{r cache=T}
+library(mice)
+MICE <- mice(M[1:n, 4:26], predictorMatrix = quickpred(M[1:n, 4:26]), method = "mean", printFlag = F)
+M[1:n, 4:26] <- complete(MICE, action = 1)
+MICE <- mice(M[(1+n):(m+n), ], predictorMatrix = quickpred(M[(1+n):(m+n), ]), method = "mean", printFlag = F)
+M[(1+n):(m+n), ] <- complete(MICE, action = 1)
+M$CAR_AGE <- as.integer(M$CAR_AGE)
+aggr(M[1:n, 4:26], bars=F, sortVars=T)
+```
+
+## Recode Categorical Variables
+
+```{r}
+M$PHD <- ifelse(M$EDUCATION == "PhD", 1, 0)
+M$MASTERS <- ifelse(M$EDUCATION == "Masters", 1, 0)
+M$BACHELORS <- ifelse(M$EDUCATION == "Bachelors", 1, 0)
+M$HS <- ifelse(M$EDUCATION == "z_High School", 1, 0)
+M$NOHS <- ifelse(M$EDUCATION == "<High School", 1, 0)
+
+M$CLERICAL <- ifelse(M$JOB == "Clerical", 1, 0)
+M$DOCTOR <- ifelse(M$JOB == "Doctor", 1, 0)
+M$HOME_MAKER <- ifelse(M$JOB == "Home Maker", 1, 0)
+M$LAWYER <- ifelse(M$JOB == "Lawyer", 1, 0)
+M$MANAGER <- ifelse(M$JOB == "Manager", 1, 0)
+M$PROF <- ifelse(M$JOB == "Professional", 1, 0)
+M$STUDENT <- ifelse(M$JOB == "Student", 1, 0)
+M$BLUE_COLLAR <- ifelse(M$JOB == "z_Blue Collar", 1, 0)
+
+M$MINIVAN <- ifelse(M$CAR_TYPE == "Minivan", 1, 0)
+M$TRUCK <- ifelse(M$CAR_TYPE == "Panel Truck", 1, 0)
+M$PICKUP <- ifelse(M$CAR_TYPE == "Pickup", 1, 0)
+M$SPORTS <- ifelse(M$CAR_TYPE == "Sports Car", 1, 0)
+M$VAN <- ifelse(M$CAR_TYPE == "Van", 1, 0)
+M$SUV <- ifelse(M$CAR_TYPE == "z_SUV", 1, 0)
+
+remove <- c("EDUCATION", "JOB", "CAR_TYPE")
+X <- rbind(X, data.frame("TARGET_FLAG" = rep(T, ncol(M)-nrow(X)), 
+                         "TARGET_AMT" = rep(T, ncol(M)-nrow(X))))
+X[match(remove, names(M)), ] <- F
+```
+
+## Correlations
+
+```{r}
+library(reshape2)
+Corr_XY <- function(X, Y) {
+  corr <- data.frame(array(NA, dim = c(ncol(X), 5)))
+  colnames(corr) <- c("Y", "X", "r","p","<0.05")
+  for (i in 1:ncol(X)) {
+    r <- cor.test(Y[, 1], X[, i])
+    corr[i, 1] <- names(Y)
+    corr[i, 2] <- names(X[i])
+    corr[i, 3] <- r$estimate
+    corr[i, 4] <- r$p.value
+    corr[i, 5] <- corr[i, 4] < 0.05
+  }
+  return(corr)
+}
+Corr_XX <- function(X, threshold) {
+  corr <- data.frame(array(NA, dim = c(choose(ncol(X), 2), 5)))
+  colnames(corr) <- c("X1", "X2", "r","p","<0.05"); k = 1
+  for (i in 1:(ncol(X) - 1)) {
+    for (j in (i+1):ncol(X)) {
+      r <- cor.test(X[,i], X[,j])
+      corr[k, 1] <- names(X[i])
+      corr[k, 2] <- names(X[j])
+      corr[k, 3] <- r$estimate
+      corr[k, 4] <- r$p.value
+      corr[k, 5] <- corr[i, 4] < 0.05
+      k = k + 1
+    }
+  }
+  least <- corr[corr[,"<0.05"] == F, ]
+  most <- corr[abs(corr[,"r"]) >= threshold, ]
+  result <- list("Correlations" = corr, "Least_Correlated"= least, "Most_Correlated" = most)
+  return(result)
+}
+```
+
+### Between $\textrm{TARGET}_\textrm{AMT}$ and $X$ Variables
+
+The specification `M[1:n, -c(1:3, categorical)]` creates a data frame excluding the `INDEX`, `TARGET_FLAG`, `TARGET_AMT`, and categorical variables. The specification ` M[1:n, 2, drop = FALSE]` creates a data frame with the $Y$ of interest and retains the column name.
+
+```{r}
+correlations <- Corr_XY(M[1:n, -c(1:3, categorical)], M[1:n, 3, drop = FALSE])
+display(correlations)
+```
+
+The predictor variables `SEX`, `BLUEBOOK`, `RED_CAR`, `BACHELORS`, `CLERICAL`, `HOME_MAKER`, `PROF`, and `SUV` do not have statistically significant correlations with the response variable and are therefore not being considered for the model. The variable `YOJ` sits at the threshold of statistical viability, and will be left in. 
+
+```{r}
+remove <- c("SEX", "BLUEBOOK", "RED_CAR", "BACHELORS", "CLERICAL", "HOME_MAKER", "PROF", "SUV")
+X[match(remove, names(M)), "TARGET_AMT"] <- F
+```
+
+### Between $\textrm{TARGET}_\textrm{FLAG}$ and $X$ Variables
+
+The specification `M[1:n, -c(1:3, categorical)]` creates a data frame excluding the `INDEX`, `TARGET_FLAG`, `TARGET_AMT`, and categorical variables. The specification ` M[1:n, 2, drop = FALSE]` creates a data frame with the $Y$ of interest and retains the column name.
+
+```{r}
+correlations <- Corr_XY(M[1:n, -c(1:3, categorical)], M[1:n, 2, drop = FALSE])
+display(correlations)
+```
+
+The predictor variables `RED_CAR`, `HOME_MAKER`, `TRUCK`, and `VAN` do not have statistically significant correlations with the response variable and are therefore not being considered for the model. The predictor variable `SEX` is on the threshold of statistical significance and will be left in as it is otherwise a fairly standard variable to study. 
+
+```{r}
+remove <- c("RED_CAR", "HOME_MAKER", "TRUCK", "VAN")
+X[match(remove, names(M)), "TARGET_FLAG"] <- F
+```
+
+### Between All $X$ Variables
+
+```{r}
+correlations <- Corr_XX(M[1:n,  (X[,"TARGET_AMT"] & X[,"TARGET_FLAG"])], 0.50)
+display(correlations$Least_Correlated)
+display(correlations$Most_Correlated)
+```
+
+The specification `M[1:n,  (X[,"TARGET_AMT"] & X[,"TARGET_FLAG"])]` creates a data frame excluding `INDEX`, `TARGET_FLAG`, `TARGET_AMT`, and the variables previously amrked for removal due to statistically significant correlations with the response variable. The variables `HOME_VAL` and `INCOME` are--expectedly--strongly correlated, although not at such a high level to suggest excluding one from the model. The binary variables `DOCTOR` and `LAWYER` are strongly correlated to their respective education level variables, `PHD` and `MASTERS`. There is statistically significant correlation between most of the remaining predictor variables. These correlations run the whole gamut from weak, to moderate, to strong. The variables that share little to no statistical significance with other predictor variables are `PARENT1`, `MSTATUS`, `TRAVTIME`, `CAR_USE`, and `TIF`. The newly derived binary variables  `LAWYER`, `BLUE`, `MINIVAN`, and `TRUCK` also sharing little little statistical significance with other predictors.  The variable `SEX` which left in only to test against the `TARGET_FLAG` response variable, also shows little to no statistically significant correlation to  other predictor variables. 
+
+## Logarithmic Transformation
+
+```{r warning=F, message=F}
+library(MASS)
+columns <- c("KIDSDRIV", "HOMEKIDS","INCOME", "HOME_VAL","TRAVTIME", "BLUEBOOK", "TIF", "OLDCLAIM", "CLM_FREQ", "MVR_PTS", "CAR_AGE")
+fit_exp <- function(X, fields) {
+  potential <- match(fields, names(X))
+  lambda <- numeric(ncol(X))
+  par(mfrow=c(2,3))
+  for (i in potential) {
+    shifted <- X[, i] - min(X[, i]) + 1e-32
+    fit_exp <- fitdistr(shifted, "Exponential")
+    lambda[i] <- fit_exp$estimate
+    exp <- rexp(1000, lambda[i])
+    hist(X[, i], prob=TRUE, col="grey", main =names(X[i]), 
+         xlab=paste("Lambda =",fractions(lambda[i])))
+    lines(density(exp), col="blue", lwd=2)
+  }
+  lambda <- data.frame("VARIABLE"=fields, "LAMBDA"=lambda[potential])
+  return(lambda)
+}
+lambda <- fit_exp(M[1:n, ], columns)
+```
+```{r}
+lambda
+```
+
+All five of the potential variables lend themselves toward modeling with an exponential distribution. The variables were shifted to slightly above zero by subtracting the minimum value and then adding $1^{-32}$ to the modified value. This would also shift data with a negative minimum in the appropriate direction since subtracting the negative minimum value equates to adding the minimum value. 
+
+```{r}
+M[, "log_INCOME"] <- log(M[, "INCOME"] - min(M[, "INCOME"]) + 1e-32, lambda[3,2])
+M[, "log_TRAVTIME"] <- log(M[, "TRAVTIME"] - min(M[, "TRAVTIME"]) + 1e-32, lambda[5,2])
+M[, "log_BLUEBOOK"] <- log(M[, "BLUEBOOK"] - min(M[, "BLUEBOOK"]) + 1e-32, lambda[6,2])
+M[, "log_OLDCLAIM"] <- log(M[, "OLDCLAIM"] - min(M[, "OLDCLAIM"]) + 1e-32, lambda[8,2])
+M[, "log_MVR_PTS"] <- log(M[, "MVR_PTS"] - min(M[, "MVR_PTS"]) + 1e-32, lambda[10,2])
+remove <- c("INCOME", "TRAVTIME", "BLUEBOOK", "OLDCLAIM", "MVR_PTS")
+X <- rbind(X, data.frame("TARGET_FLAG" = rep(T, ncol(M)-nrow(X)), 
+                         "TARGET_AMT" = rep(T, ncol(M)-nrow(X))))
+X[match(remove, names(M)), ] <- F
+```
+
+## Categorization of Multimodal Data
+`YOJ`, `HOME_VAL`, and `CAR_AGE`
+```{r}
+par(mfrow=c(1,3))
+plot(M[1:n, "YOJ"]); abline(h = 1, col="red"); abline(h = 0, col="blue")
+plot(M[1:n, "HOME_VAL"]); abline(h = 50000, col="red"); abline(h = 1, col="blue")
+plot(M[1:n, "CAR_AGE"]); abline(h = 4, col="red"); abline(h = 1, col="blue")
+```
+
+The `YOJ`, `CAR_AGE` and `HOME_VAL` predictor variables have bimodal distributions. There are clear lines of demarcation in the values that we can use to bifurcate the variables into categories.
+
+```{r}
+M[,"cat_YOJ"] <- ifelse(M[,"YOJ"] < (1 + 0) / 2, 0, 1)
+M[,"cat_HOME_VAL"] <- ifelse(M[,"HOME_VAL"] < (50000 + 1) / 2, 0, 1)
+M[,"cat_CAR_AGE"] <- ifelse(M[,"CAR_AGE"] < (4 + 1) / 2, 0, 1)
+remove <- c("YOJ", "HOME_VAL", "CAR_AGE")
+X <- rbind(X, data.frame("TARGET_FLAG" = rep(T, ncol(M)-nrow(X)), 
+                         "TARGET_AMT" = rep(T, ncol(M)-nrow(X))))
+X[match(remove, names(M)), ] <- F
+```
+
+## Box-Cox Transformation
+
+```{r warning=F, message=F}
+library(car)
+potential <- match(c("AGE", "TIF"), names(M))
+box.cox.powers <- powerTransform(M[1:n, potential], family="bcPower")
+summary(box.cox.powers)
+```
+
+The `TIF` variable lends itself toward Box-Cox transformation, while the `AGE` variable has a power close to 1 which discourages transformation. Its boundaries also hover around 1, further supporting the decision against transformation.
+
+```{r}
+M[, "box_TIF"] <- M[, "TIF"]^(box.cox.powers$lambda[1])
+remove <- c("TIF")
+X <- rbind(X, data.frame("TARGET_FLAG" = rep(T, ncol(M)-nrow(X)), 
+                         "TARGET_AMT" = rep(T, ncol(M)-nrow(X))))
+X[match(remove, names(M)), ] <- F
+```
+
+# Build Models
+
+Using the training data set, build at least two different multiple linear regression (MLR) models and three different binary logistic regression (BLR) models, using different variables (or the same variables with different transformations). You may select the variables manually, use an approach such as Forward or Stepwise, use a different approach such as trees, or use a combination of techniques. Describe the techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
+
+Discuss the coefficients in the models, do they make sense? For example, if a person has a lot of traffic tickets, you would reasonably expect that person to have more car crashes. If the coefficient is negative (suggesting that the person is a safer driver), then that needs to be discussed. Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
+
+```{r}
+training_AMT <- M[1:n, X[,"TARGET_AMT"]]
+training_FLAG <- M[1:n, X[,"TARGET_FLAG"]]
+```
+
+## Forward Selection
+
+Forward stepwise subset selection based on $AIC$. Using $k = 2$ degrees of freedom for the penalty gives the genuine $AIC$. Using $k = log(n)$ is sometimes referred to as BIC or SBC.
+
+### Multiple Linear Regression
+
+```{r cache=T}
+null <- lm(TARGET_AMT ~ 0, training_AMT)
+full <- lm(TARGET_AMT ~ ., training_AMT)
+aic_steps <- step(null, scope=list(lower=null, upper=full), direction="forward", k = 2, trace=F)
+aic_steps$call
+```
+
+The above model has the lowest AIC.
+
+```{r}
+forward_AMT <- lm(aic_steps$call, training_AMT)
+summary(forward_AMT)
+```
+
+Using the `r aic_steps$rank` forward selected variables leads to a model with several insignificant variables: `STUDENT`, `cat_CAR_AGE`, `LAWYER`, `log_TRAVTIME`, and `log_INCOME`. `CLM_FREQ` becomes significant when these variables are removed.
+
+```{r}
+forward_AMT <- lm(TARGET_AMT ~ URBANICITY + PARENT1 + MANAGER + CLM_FREQ + 
+    CAR_USE + HS + NOHS + MINIVAN + REVOKED + KIDSDRIV + MSTATUS + AGE + 
+    box_TIF + DOCTOR + SPORTS + HOMEKIDS - 1, training_AMT)
+summary(forward_AMT)
+```
+This model suggests that residing in an urban area (`URBANCITY`) is the strongest predictor of `TARGET_AMT`. Higher skilled professions like `DOCTOR` and `MANGER` appear less likely to report high costs, in contrast to lower socioeconomic predicting variables like `NOHS`, which has a much larger coefficient. It also appears that those with families also tend to report lower costs, such the variables `MSTATUS`, `MINIVAN`, and `HOMEKIDS`. 
+
+Interestingly, `CAR_USE` has a negative coefficient, suggesting that higher usage is correlated to lower insurance costs. In the correlation matrix above, we see a correlation between `EDUCATION`, `SEX` and `CAR_USE`, suggesting that perhaps `CAR_USE` is less a predictor of commercial usage and more about how social and active in the community the insuree is. 
+
+### Binary Logistic Regression
+
+```{r cache=T}
+null <- glm(TARGET_FLAG ~ 0, family = binomial(link = "logit"), training_FLAG)
+full <- glm(TARGET_FLAG ~ ., family = binomial(link = "logit"), training_FLAG)
+aic_steps <- step(null, scope=list(lower=null, upper=full), direction="forward", k = 2, trace=F)
+aic_steps$aic
+aic_steps$formula
+```
+
+The above model has the lowest AIC.
+
+```{r}
+forward_FLAG <- glm(aic_steps$formula, family = binomial(link = "logit"), training_FLAG)
+summary(forward_FLAG)
+```
+
+Using the `r aic_steps$rank` forward selected variables leads to a model with one insignificant variable: `cat_YOJ`.
+
+```{r}
+forward_FLAG <- glm(TARGET_FLAG ~ log_OLDCLAIM + CAR_USE + MSTATUS + URBANICITY + 
+    MANAGER + MINIVAN + KIDSDRIV + REVOKED + AGE + 
+    HS + NOHS + box_TIF + DOCTOR + log_MVR_PTS + SPORTS + log_TRAVTIME + 
+    SUV + cat_HOME_VAL + PARENT1 + log_INCOME + CLERICAL + PICKUP + 
+    SEX + log_BLUEBOOK + BLUE_COLLAR - 1, family = binomial(link = "logit"), training_FLAG)
+summary(forward_FLAG)
+```
+Again we see that `URBANICITY` is the strongest predictor--here it is of being in a crash. We also see those with higher economic standing are less likely to get in a crash, with large estimates for the variables `MANAGER` and `cat_HOME_VAL`. Sports car (`SPORTS`) and SUV (`SUV`) owners are more crash prone. While those with a family (`MSTATUS`) appear less crash prone. 
+
+## Backward Elimination
+
+Backward stepwise subset elimination based on $AIC$. Using $k = 2$ degrees of freedom for the penalty gives the genuine $AIC$. Using $k = log(n)$ is sometimes referred to as BIC or SBC.
+
+### Multiple Linear Regression
+
+```{r cache=T}
+null <- lm(TARGET_AMT ~ 0, training_AMT)
+full <- lm(TARGET_AMT ~ ., training_AMT)
+aic_steps <- step(full, scope=list(lower=null, upper=full), direction="backward", k = 2, trace=F)
+aic_steps$call
+```
+
+The above model has the lowest AIC.
+
+```{r}
+backward_AMT <- lm(aic_steps$call, training_AMT)
+summary(backward_AMT)
+```
+
+Using the `r aic_steps$rank` backward eliminated variables leads to a model with one one insignificant variable: `log_INCOME`. Removing this insignificant variables leaves all remaining variables  significant at a level of $\alpha=0.05$ or lower. The backwards elimination model culls notably more insignificant variables off the model than the [Forward Selection](#forward-selection) process.
+
+```{r}
+backward_AMT <- lm(TARGET_AMT ~ KIDSDRIV + PARENT1 + MSTATUS + CAR_USE + 
+    REVOKED + URBANICITY + HS + NOHS + DOCTOR + MANAGER + MINIVAN + 
+    SPORTS + log_TRAVTIME + log_OLDCLAIM + log_MVR_PTS + 
+    box_TIF, training_AMT)
+summary(backward_AMT)
+```
+
+
+### Binary Logistic Regression
+
+```{r cache=T}
+null <- glm(TARGET_FLAG ~ 0, family = binomial(link = "logit"), training_FLAG)
+full <- glm(TARGET_FLAG ~ ., family = binomial(link = "logit"), training_FLAG)
+aic_steps <- step(full, scope=list(lower=null, upper=full), direction="backward", k = 2, trace=F)
+aic_steps$aic
+aic_steps$formula
+```
+
+The above model has the lowest AIC.
+
+```{r}
+backward_FLAG <- glm(aic_steps$formula, family = binomial(link = "logit"), training_FLAG)
+summary(backward_FLAG)
+```
+
+Using the `r aic_steps$rank` backward eliminated variables leads to a model no insignificant variables.
+
+## Adjusted $R^2$
+
+```{r warning=F, message=F}
+library(leaps)
+model_sum_AMT <- summary(regsubsets(TARGET_AMT ~ ., training_AMT, nvmax=ncol(training_AMT)))
+model_sum_FLAG <- summary(regsubsets(TARGET_FLAG ~ ., training_FLAG, nvmax=ncol(training_FLAG)))
+par(mfrow=c(1,2))
+plot(model_sum_AMT$adjr2, xlab = "Number of Variables", ylab = "Adj R-squared", main="TARGET_AMT")
+plot(model_sum_FLAG$adjr2, xlab = "Number of Variables", ylab = "Adj R-squared", main="TARGET_FLAG")
+cbind(max(model_sum_AMT$adjr2), which.max(model_sum_AMT$adjr2))
+cbind(max(model_sum_FLAG$adjr2), which.max(model_sum_FLAG$adjr2))
+```
+
+The maximum Adjusted $R^2$ of `r max(model_sum_AMT$adjr2)` for the model predicting `TARGET_AMT` is reached when the model contains `r which.max(model_sum_AMT$adjr2)` variables. The maximum Adjusted $R^2$ of `r max(model_sum_FLAG$adjr2)` for the model predicting `TARGET_FLAG` is reached when the model contains `r which.max(model_sum_FLAG$adjr2)` variables.
+
+```{r}
+model_sum_AMT$which[which.max(model_sum_AMT$adjr2), ]
+adjustedr2_AMT <- lm(TARGET_AMT ~ 1 + KIDSDRIV + PARENT1 + MSTATUS + CAR_USE + 
+    REVOKED + URBANICITY + PHD + HS + NOHS + DOCTOR + LAWYER + MANAGER + MINIVAN + 
+    PICKUP + SPORTS + log_INCOME + log_TRAVTIME + log_OLDCLAIM + log_MVR_PTS + 
+    cat_CAR_AGE + box_TIF, training_AMT)
+summary(adjustedr2_AMT)
+model_sum_FLAG$which[which.max(model_sum_FLAG$adjr2), ]
+adjustedr2_FLAG <- glm(TARGET_FLAG ~ 1 + KIDSDRIV + AGE + PARENT1 + MSTATUS + SEX + 
+    CAR_USE + CLM_FREQ + REVOKED + URBANICITY + HS + NOHS + CLERICAL + DOCTOR + LAWYER + 
+    MANAGER + PROF + MINIVAN + PICKUP + SPORTS + SUV + log_INCOME + log_TRAVTIME + log_BLUEBOOK + 
+    log_OLDCLAIM + log_MVR_PTS + box_TIF, family = binomial(link = "logit"), training_FLAG)
+summary(adjustedr2_FLAG)
+```
+
+## Mallows $C_p$
+
+```{r}
+par(mfrow=c(1,2))
+plot(model_sum_AMT$cp, xlab = "Number of Variables", ylab = "Mallows Cp", main="TARGET_AMT")
+plot(model_sum_FLAG$cp, xlab = "Number of Variables", ylab = "Mallows Cp", main="TARGET_FLAG")
+cbind(min(model_sum_AMT$cp), which.min(model_sum_AMT$cp))
+cbind(min(model_sum_FLAG$cp), which.min(model_sum_FLAG$cp))
+```
+
+The minimum Mallows $C_p$ `r min(model_sum_AMT$cp)` for the model predicting `TARGET_AMT` is reached when the model contains `r which.min(model_sum_AMT$cp)` variables. The minimum Mallows $C_p$ of `r min(model_sum_FLAG$cp)` for the model predicting `TARGET_FLAG` is reached when the model contains `r which.min(model_sum_FLAG$cp)` variables.
+
+```{r}
+model_sum_AMT$which[which.min(model_sum_AMT$cp), ]
+mallowscp_AMT <- lm(TARGET_AMT ~ 1 + KIDSDRIV + PARENT1 + MSTATUS + CAR_USE + REVOKED + 
+     URBANICITY + HS + NOHS + DOCTOR + MANAGER + MINIVAN + SPORTS + log_INCOME + log_TRAVTIME + 
+     log_OLDCLAIM + log_MVR_PTS + box_TIF, training_AMT)
+summary(mallowscp_AMT)
+model_sum_FLAG$which[which.min(model_sum_FLAG$cp), ]
+mallowscp_FLAG <- glm(TARGET_FLAG ~ 1 + KIDSDRIV + AGE + PARENT1 + MSTATUS + SEX + CAR_USE + 
+     REVOKED + URBANICITY + HS + NOHS + CLERICAL + DOCTOR + LAWYER + MANAGER + PROF + 
+     MINIVAN + PICKUP + SPORTS + SUV + log_INCOME + log_TRAVTIME + log_BLUEBOOK + 
+     log_OLDCLAIM + log_MVR_PTS + box_TIF, family = binomial(link = "logit"), training_FLAG)
+summary(mallowscp_FLAG)
+```
+
+# Select Models
+
+## Multiple Linear Regression Model
+
+Decide on the criteria for selecting the best multiple linear regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
+
+For the multiple linear regression model, will you use a metric such as Adjusted R2, RMSE, etc.? Be sure to explain how you can make inferences from the model, discuss multi-collinearity issues (if any), and discuss other relevant model output. Using the training data set, evaluate the multiple linear regression model based on (a) mean squared error, (b) R2, (c) F-statistic, and (d) residual plots. 
+
+```{r}
+sum1 <- summary(forward_AMT)
+sum2 <- summary(backward_AMT)
+sum3 <- summary(adjustedr2_AMT)
+sum4 <- summary(mallowscp_AMT)
+```
+
+### Multicollinearity
+
+```{r}
+library(lmtest)
+dwtest(forward_AMT)
+dwtest(backward_AMT)
+dwtest(adjustedr2_AMT)
+dwtest(mallowscp_AMT)
+```
+We have notable multicollinarity here, although no models are significantly worse. 
+
+### Mean Squared Error and RMSE
+
+```{r}
+data.frame("MODEL" = c("forward_AMT", "backward_AMT", "adjustedr2_AMT", "mallowscp_AMT"),
+  "MSE" = c(sum1$sigma^2, sum2$sigma^2, sum3$sigma^2, sum4$sigma^2),
+  "RMSE" = c(sum1$sigma, sum2$sigma, sum3$sigma, sum4$sigma))
+```
+These models all have similar MSE and RMSE's. 
+
+### $R^2$ and Adjusted $R^2$
+
+```{r}
+data.frame("MODEL" = c("forward_AMT", "backward_AMT", "adjustedr2_AMT", "mallowscp_AMT"),
+  "R.SQUARED" = c(sum1$r.squared, sum2$r.squared, sum3$r.squared, sum4$r.squared),
+  "ADJ.R.SQUARED" = c(sum1$adj.r.squared, sum2$adj.r.squared, sum3$adj.r.squared, sum4$adj.r.squared))
+```
+However, the forward stepwise linear regression model has a slightly higher R-squared, suggesting that the model explains more of the variability of the response data. 
+
+### $F$-statistic
+
+```{r} 
+data.frame("MODEL" = c("forward_AMT", "backward_AMT", "adjustedr2_AMT", "mallowscp_AMT"),
+           rbind(sum1$fstatistic, sum2$fstatistic, sum3$fstatistic, sum4$fstatistic))
+```
+Again, the forward stepwise linear regression model has the highest F-statistic, suggesting that it accounts for the most variance. 
+
+### Examine Residuals
+
+```{r}
+par(mfrow = c(2,2))
+plot(forward_AMT)
+plot(backward_AMT)
+plot(adjustedr2_AMT)
+plot(mallowscp_AMT)
+```
+
+## Binary Logistic Regression Model
+
+Decide on the criteria for selecting the best binary logistic regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
+
+For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
+
+### Confusion Matrix
+
+```{r warning=F, message=F}
+library(caret)
+training_FLAG[ ,"probability.forward"] <- predict(forward_FLAG, training_FLAG, type="response")
+training_FLAG[ ,"class.forward"] <- ifelse(training_FLAG$probability.forward < 0.5, 0, 1)
+(cm1 <- confusionMatrix(training_FLAG$class.forward, training_FLAG$TARGET_FLAG, positive = "1"))
+```
+
+The model derived using [Forward Selection](#forward-selection) has the following performance metrics: **Accuracy** of `r cm1$overall[[1]]`, **Error Rate** of `r 1 - cm1$overall[[1]]`, **Precision** of `r cm1$byClass[[3]]`, **Sensitivity** of `r cm1$byClass[[1]]`, **Specificity** of `r cm1$byClass[[2]]`, and **$F_1$ Score** of `r cm1$byClass[[7]]`.
+
+```{r warning=F, message=F}
+training_FLAG[ ,"probability.backward"] <- predict(backward_FLAG, training_FLAG, type="response")
+training_FLAG[ ,"class.backward"] <- ifelse(training_FLAG$probability.backward < 0.5, 0, 1)
+(cm2 <- confusionMatrix(training_FLAG$class.backward, training_FLAG$TARGET_FLAG, positive = "1"))
+```
+
+The model derived using [Backward Elimination](#backward-elimination) has the following performance metrics: **Accuracy** of `r cm2$overall[[1]]`, **Error Rate** of `r 1 - cm2$overall[[1]]`, **Precision** of `r cm2$byClass[[3]]`, **Sensitivity** of `r cm2$byClass[[1]]`, **Specificity** of `r cm2$byClass[[2]]`, and **$F_1$ Score** of `r cm2$byClass[[7]]`.
+
+```{r warning=F, message=F}
+training_FLAG[ ,"probability.adjustedr2"] <- predict(adjustedr2_FLAG, training_FLAG, type="response")
+training_FLAG[ ,"class.adjustedr2"] <- ifelse(training_FLAG$probability.adjustedr2 < 0.5, 0, 1)
+(cm3 <- confusionMatrix(training_FLAG$class.adjustedr2, training_FLAG$TARGET_FLAG, positive = "1"))
+```
+
+The model derived using [Adjusted $R^2$](#adjusted-r2) has the following performance metrics: **Accuracy** of `r cm3$overall[[1]]`, **Error Rate** of `r 1 - cm3$overall[[1]]`, **Precision** of `r #cm3$byClass[[3]]`, **Sensitivity** of `r cm3$byClass[[1]]`, **Specificity** of `r cm3$byClass[[2]]`, and **$F_1$ Score** of `r cm3$byClass[[7]]`. These metrics are identical to those from [Backward #Elimination](#backward-elimination) since, as previously mentioned, both models are nearly idencial exept for the intercept.
+
+```{r warning=F, message=F}
+training_FLAG[ ,"probability.mallowscp"] <- predict(mallowscp_FLAG, training_FLAG, type="response")
+training_FLAG[ ,"class.mallowscp"] <- ifelse(training_FLAG$probability.mallowscp < 0.5, 0, 1)
+(cm4 <- confusionMatrix(training_FLAG$class.mallowscp, training_FLAG$TARGET_FLAG, positive = "1"))
+```
+
+The model derived using [Mallows $C_p$](#mallows-c_p) has the following performance metrics: **Accuracy** of `r cm4$overall[[1]]`, **Error Rate** of `r 1 - cm4$overall[[1]]`, **Precision** of `r #cm4$byClass[[3]]`, **Sensitivity** of `r cm4$byClass[[1]]`, **Specificity** of `r cm4$byClass[[2]]`, and **$F_1$ Score** of `r cm4$byClass[[7]]`. This model has the same Accuracy as the model #derived using [Forward Selection](#forward-selection), but with better Precision, Specificity, and $F_1$ Score values. It does have a lower Sensitivity value however.
+
+### ROC Curve
+
+```{r warning=F, message=F}
+library(pROC)
+par(mfrow=c(2,2))
+plot(roc(training_FLAG$TARGET_FLAG, training_FLAG$class.forward, smooth=F), print.auc=TRUE)
+plot(roc(training_FLAG$TARGET_FLAG, training_FLAG$class.backward, smooth=F), print.auc=TRUE)
+plot(roc(training_FLAG$TARGET_FLAG, training_FLAG$probability.adjustedr2, smooth=F), print.auc=TRUE)
+plot(roc(training_FLAG$TARGET_FLAG, training_FLAG$probability.mallowscp, smooth=F), print.auc=TRUE)
+```
+
+The logistic binary regression models with the highest Accuracy were the [Mallows $C_p$](#mallows-c_p) and the [Adjusted $R^2$](#adjusted-r2) models. These models were nearly identical except that the latter scored slightly better on the multicollinarity test. 
+
+The forward step multiple linear regression model outperformed the others on multiple diagnostics. 
+
+## Predictions
+
+Make predictions using the evaluation data set.
+
+```{r}
+validation <- M[(1+n):(m+n),]
+probability <- predict(adjustedr2_FLAG, validation, type="response")
+predict_FLAG <- ifelse(probability >= .5, 1, 0)
+predict_AMT <- predict(forward_AMT, validation)
+predict_AMT[predict_FLAG == 0] <- 0
+predictions <- data.frame("predict_FLAG" = predict_FLAG, "predict_AMT" = predict_AMT)
+display(predictions)
+```
+
+## Prevalence
+
+```{r}
+n <- sum(training_FLAG$TARGET_FLAG)
+N <- nrow(training_FLAG)
+m <- sum(predict_FLAG)
+M <- length(predict_FLAG)
+binom.test(m, M, n / N)
+```
+
+The prevalence of the positive condition is `r round(n / N * 100, 2)`% in the training data and `r round(m / M * 100, 2)`% in the evaluation data results. Although there is some difference in these figures, the difference is not significant at an $\alpha = 0.05$ as can be seen in the above Binomial test.
+
+## Findings
+
+## Findings
+
+With a fairly robust sample size ($n$ = 8,161) and 23 independent variables we're tasked to build a predictive model for determining what variables determine whether or not a car crash will occur, and if so what variables impact the cost and in what direction.
+
+Our methodology for this data set is to create two distinct models. The first model is a logistic model that predicts whether or not a car crash will occur. The second model is a linear regression model that predicts the cost of car crash, based on the same variables used in our logistic regression. 
+
+After using a variety of methods for imputation, variable categorization and transformation we wounded up with two final models. Our final linear model (forward_AMT) yielded a .15 adjusted $R^2$, likely due to some log transformation that helped correct the skew in some of our variables. The full original model yielded a goodness of fit at around $R^2$ = .07. This model contained 21 independent variables, which means multicollinearity is always a concern as our data set widens. 
+
+Our final linear model tell us that variables such Teenagers driving (KIDSDRIV), single parent households (PARENT1), travel time, claim frequency (CLM_FREQ), license having been revoked (REVOKED), AGE and urban proximity (URBANICITY) all showed positive statistical significance with increased amounts of car crash costs.  Also, lower education level (HS & NOHS) showed positive statistical significance with car crash costs increasing. None of these findings run counter to the findings of domain expertise - although urbanicity was classified as unknown. 
+
+Alternatively, factors such as commercial vs. private use (assumption is that residential use only resulted in lower claim amounts), length of tenure and marital status (being married) all were shown to decrease as car crash cost amounts rose. 
+
+Additionally, some of dummy variables yielded results for statistically significant values - so while we can't generalize about education, occupation or car type on a whole, certain values yielded statistically significant results - that might be impact company policy. For example, we found that being a doctor negative correlated with car crash incidence, along with being a manager. This could indicate the professions involving being responsible for other leads to a less likelihood of being in a car crash. Also, among car types minivans had a negative correlation with car crash incidence - as expected. 
+
+*see/run summary (forward_AMT) for our linear model*
+
+
+# References
+
+https://rpubs.com/josezuniga/262383
+
+https://rpubs.com/josezuniga/253955
+
+http://data.princeton.edu/R/glms.html
+
+http://www.statmethods.net/advstats/glm.html
+
+http://www.theanalysisfactor.com/what-is-logit-function/
+
+http://stats.stackexchange.com/questions/186081/is-multicollinearity-an-issue-when-doing-stepwise-logistic-regression-using-aic
