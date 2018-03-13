@@ -1,0 +1,401 @@
+---
+title: "ThesisTabs"
+author: "Andrew Goldberg"
+date: "December 13, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+DemBreaker 
+```{r}
+#Frequencies
+ftab.DemBreaker.Gender <- ftable(xtabs(~Gender+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.Race4 <- ftable(xtabs(~Race4 + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.Education <- ftable(xtabs(~Education + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.IncomeGroup <- ftable(xtabs(~IncomeGroup + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.Occupation <- ftable(xtabs(~Occupation + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.Religion <- ftable(xtabs(~Religion + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.SocialClass <- ftable(xtabs(~SocialClass + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.JobWorry <- ftable(xtabs(~JobWorry + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.Year <- ftable(xtabs(~Year + DemBreaker, data=dsHistPres))
+
+#Percentages
+ptab.DemBreaker.Gender <- percentages( Gender~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.Race4 <- percentages(Race4~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.Education <- percentages(Education~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.IncomeGroup <- percentages(IncomeGroup~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.Occupation <- percentages(Occupation~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.Religion <- percentages(Religion~ DemBreaker,data=dsHistPres)
+ptab.DemBreaker.SocialClass <- percentages(SocialClass~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.JobWorry <- percentages(JobWorry~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.Year <- percentages(Year~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker <- percentages(~DemBreaker~ DemBreaker, data = dsHistPres)
+
+fptab.Gender.DemBreaker <- ftable(ptab.DemBreaker.Gender, col.vars=2)
+fptab.Race4.DemBreaker <- ftable(ptab.DemBreaker.Race4, col.vars=2)
+fptab.Education.DemBreaker <- ftable(ptab.DemBreaker.Education, col.vars=2)
+fptab.IncomeGroup.DemBreaker <- ftable(ptab.DemBreaker.IncomeGroup, col.vars=2)
+fptab.Occupation.DemBreaker <- ftable(ptab.DemBreaker.Occupation, col.vars=2)
+fptab.Religion.DemBreaker <- ftable(ptab.DemBreaker.Religion, col.vars=2)
+fptab.SocialClass.DemBreaker <- ftable(ptab.DemBreaker.SocialClass, col.vars=2)
+fptab.JobWorry.DemBreaker <- ftable(ptab.DemBreaker.JobWorry, col.vars=2)
+fptab.Year.DemBreaker <- ftable(ptab.DemBreaker.Year, col.vars=2)
+
+percDemBreaker <-   rbind(
+    fptab.Gender.DemBreaker,
+    fptab.Race4.DemBreaker,
+    fptab.Education.DemBreaker,
+    fptab.IncomeGroup.DemBreaker,
+    fptab.Occupation.DemBreaker,
+    fptab.Religion.DemBreaker,
+    fptab.SocialClass.DemBreaker,
+    fptab.JobWorry.DemBreaker,
+    fptab.Year.DemBreaker
+  )
+
+freqDemBreaker <-   rbind(
+    ftab.DemBreaker.Gender,
+    ftab.DemBreaker.Race4,
+    ftab.DemBreaker.Education,
+    ftab.DemBreaker.IncomeGroup,
+    ftab.DemBreaker.Occupation,
+    ftab.DemBreaker.Religion,
+    ftab.DemBreaker.SocialClass,
+    ftab.DemBreaker.JobWorry,
+    ftab.DemBreaker.Year
+  )
+show_html(
+cbind(percDemBreaker, freqDemBreaker)
+)
+```
+
+#Partisanship
+```{r}
+#Frequencies
+ftab.DemBreaker.PartyIdent7 <- ftable(xtabs(~PartyIdent7+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.PoliticalInterest <- ftable(xtabs(~PoliticalInterest + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.CarePartyPres <- ftable(xtabs(~CarePartyPres + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.InterestPublicAffairs <- ftable(xtabs(~InterestPublicAffairs + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.LibConScale <- ftable(xtabs(~LibConScale + DemBreaker, data=dsHistPres))
+
+#Percentages
+ptab.DemBreaker.PartyIdent7 <- percentages( PartyIdent7~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.PoliticalInterest <- percentages(PoliticalInterest~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.CarePartyPres <- percentages(CarePartyPres~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.InterestPublicAffairs <- percentages(InterestPublicAffairs~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.LibConScale <- percentages(LibConScale~DemBreaker, data=dsHistPres)
+
+fptab.PartyIdent7.DemBreaker <- ftable(ptab.DemBreaker.PartyIdent7, col.vars=2)
+fptab.PoliticalInterest.DemBreaker <- ftable(ptab.DemBreaker.PoliticalInterest, col.vars=2)
+fptab.CarePartyPres.DemBreaker <- ftable(ptab.DemBreaker.CarePartyPres, col.vars=2)
+fptab.InterestPublicAffairs.DemBreaker <- ftable(ptab.DemBreaker.InterestPublicAffairs, col.vars=2)
+fptab.LibConScale.DemBreaker <- ftable(ptab.DemBreaker.LibConScale, col.vars=2)
+
+percDemBreakerPol <-   rbind(
+    fptab.PartyIdent7.DemBreaker,
+    fptab.PoliticalInterest.DemBreaker,
+    fptab.CarePartyPres.DemBreaker,
+    fptab.InterestPublicAffairs.DemBreaker,
+    fptab.LibConScale.DemBreaker
+  )
+
+freqDemBreakerPol <-   rbind(
+    ftab.DemBreaker.PartyIdent7,
+    ftab.DemBreaker.PoliticalInterest,
+    ftab.DemBreaker.CarePartyPres,
+    ftab.DemBreaker.InterestPublicAffairs,
+    ftab.DemBreaker.LibConScale
+  )
+show_html(
+cbind(percDemBreakerPol, freqDemBreakerPol)
+)
+```
+#Candidate Evaluations
+```{r}
+#Frequencies
+ftab.DemBreaker.DemCandAngry <- ftable(xtabs(~DemCandAngry+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DemCandAfraid <- ftable(xtabs(~DemCandAfraid + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DemCandHopeful <- ftable(xtabs(~DemCandHopeful + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DemCandProud <- ftable(xtabs(~DemCandProud + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DemCandKnowledge <- ftable(xtabs(~DemCandKnowledge+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DemCandLeader <- ftable(xtabs(~DemCandLeader + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DemCandCares <- ftable(xtabs(~DemCandCares + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandAngry <- ftable(xtabs(~RepCandAngry + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandAfraid <- ftable(xtabs(~RepCandAfraid + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandHopeful <- ftable(xtabs(~RepCandHopeful + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandProud <- ftable(xtabs(~RepCandProud + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandKnowledge <- ftable(xtabs(~RepCandKnowledge + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandLeader <- ftable(xtabs(~RepCandLeader + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.RepCandCares <- ftable(xtabs(~RepCandCares + DemBreaker, data=dsHistPres))
+
+#Percentages
+ptab.DemBreaker.DemCandAngry <- percentages( DemCandAngry~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DemCandAfraid <- percentages(DemCandAfraid~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DemCandHopeful <- percentages(DemCandHopeful~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DemCandProud <- percentages(DemCandProud~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DemCandKnowledge <- percentages( DemCandKnowledge~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DemCandLeader <- percentages(DemCandLeader~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DemCandCares <- percentages(DemCandCares~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.RepCandAngry <- percentages(RepCandAngry~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.RepCandAfraid <- percentages(RepCandAfraid~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.RepCandHopeful <- percentages(RepCandHopeful~DemBreaker,data=dsHistPres)
+ptab.DemBreaker.RepCandProud <- percentages(RepCandProud~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.RepCandKnowledge <- percentages(RepCandKnowledge~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.RepCandLeader <- percentages(RepCandLeader~DemBreaker, data=dsHistPres)
+ptab.DemBreaker.RepCandCares <- percentages(RepCandCares~DemBreaker, data=dsHistPres)
+
+
+fptab.DemCandAngry.DemBreaker <- ftable(ptab.DemBreaker.DemCandAngry, col.vars=2)
+fptab.DemCandAfraid.DemBreaker <- ftable(ptab.DemBreaker.DemCandAfraid, col.vars=2)
+fptab.DemCandHopeful.DemBreaker <- ftable(ptab.DemBreaker.DemCandHopeful, col.vars=2)
+fptab.DemCandProud.DemBreaker <- ftable(ptab.DemBreaker.DemCandProud, col.vars=2)
+fptab.DemCandKnowledge.DemBreaker <- ftable(ptab.DemBreaker.DemCandKnowledge, col.vars=2)
+fptab.DemCandLeader.DemBreaker <- ftable(ptab.DemBreaker.DemCandLeader, col.vars=2)
+fptab.DemCandCares.DemBreaker <- ftable(ptab.DemBreaker.DemCandCares, col.vars=2)
+fptab.RepCandAngry.DemBreaker <- ftable(ptab.DemBreaker.RepCandAngry, col.vars=2)
+fptab.RepCandAfraid.DemBreaker <- ftable(ptab.DemBreaker.RepCandAfraid, col.vars=2)
+fptab.RepCandHopeful.DemBreaker <- ftable(ptab.DemBreaker.RepCandHopeful, col.vars=2)
+fptab.RepCandProud.DemBreaker <- ftable(ptab.DemBreaker.RepCandProud, col.vars=2)
+fptab.RepCandKnowledge.DemBreaker <- ftable(ptab.DemBreaker.RepCandKnowledge, col.vars=2)
+fptab.RepCandLeader.DemBreaker <- ftable(ptab.DemBreaker.RepCandLeader, col.vars=2)
+fptab.RepCandCares.DemBreaker <- ftable(ptab.DemBreaker.RepCandCares, col.vars=2)
+
+percDemBreakerCand <-   rbind(
+    fptab.DemCandAngry.DemBreaker,
+    fptab.DemCandAfraid.DemBreaker,
+    fptab.DemCandHopeful.DemBreaker,
+    fptab.DemCandProud.DemBreaker,
+    fptab.DemCandKnowledge.DemBreaker,
+    fptab.DemCandLeader.DemBreaker,
+    fptab.DemCandCares.DemBreaker,
+    fptab.RepCandAngry.DemBreaker,
+    fptab.RepCandAfraid.DemBreaker,
+    fptab.RepCandHopeful.DemBreaker,
+    fptab.RepCandProud.DemBreaker,
+    fptab.RepCandKnowledge.DemBreaker,
+    fptab.RepCandLeader.DemBreaker,
+    fptab.RepCandCares.DemBreaker
+  )
+
+freqDemBreakerCand <-   rbind(
+    ftab.DemBreaker.DemCandAngry,
+    ftab.DemBreaker.DemCandAfraid,
+    ftab.DemBreaker.DemCandHopeful,
+    ftab.DemBreaker.DemCandProud,
+    ftab.DemBreaker.DemCandKnowledge,
+    ftab.DemBreaker.DemCandLeader,
+    ftab.DemBreaker.DemCandCares,
+    ftab.DemBreaker.RepCandAngry,
+    ftab.DemBreaker.RepCandAfraid,
+    ftab.DemBreaker.RepCandHopeful,
+    ftab.DemBreaker.RepCandProud,
+    ftab.DemBreaker.RepCandKnowledge,
+    ftab.DemBreaker.RepCandLeader,
+    ftab.DemBreaker.RepCandCares
+  )
+show_html(
+cbind(percDemBreakerCand, freqDemBreakerCand)
+)
+```
+#Support for political system
+#Frequencies
+```{r}
+ftab.DemBreaker.PresPerfApprove <- ftable(xtabs(~PresPerfApprove+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.DiffTweenParties <- ftable(xtabs(~DiffTweenParties + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.FedGovInterests <- ftable(xtabs(~FedGovInterests + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.FedGovWasteTaxes <- ftable(xtabs(~FedGovWasteTaxes + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.GovtCrookedOffic <- ftable(xtabs(~GovtCrookedOffic+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.GovtCareYouThink <- ftable(xtabs(~GovtCareYouThink + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.HaveSayInGovt <- ftable(xtabs(~HaveSayInGovt + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.PolGovComplicated <- ftable(xtabs(~PolGovComplicated + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.VoteMatters <- ftable(xtabs(~VoteMatters + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.TrustPeople <- ftable(xtabs(~TrustPeople + DemBreaker, data=dsHistPres))
+
+ptab.DemBreaker.PresPerfApprove <- percentages(PresPerfApprove ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.DiffTweenParties <- percentages(DiffTweenParties ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.FedGovInterests <- percentages(FedGovInterests ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.FedGovWasteTaxes <- percentages(FedGovWasteTaxes ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.GovtCrookedOffic <- percentages(GovtCrookedOffic ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.GovtCareYouThink <- percentages(GovtCareYouThink ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.HaveSayInGovt <- percentages(HaveSayInGovt ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.PolGovComplicated <- percentages(PolGovComplicated ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.VoteMatters <- percentages(VoteMatters ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.TrustPeople <- percentages(TrustPeople ~ DemBreaker, data=dsHistPres)
+
+fptab.PresPerfApprove.DemBreaker <- ftable(ptab.DemBreaker.PresPerfApprove, col.vars=2)
+fptab.DiffTweenParties.DemBreaker <- ftable(ptab.DemBreaker.DiffTweenParties, col.vars=2)
+fptab.FedGovInterests.DemBreaker <- ftable(ptab.DemBreaker.FedGovInterests, col.vars=2)
+fptab.FedGovWasteTaxes.DemBreaker <- ftable(ptab.DemBreaker.FedGovWasteTaxes, col.vars=2)
+fptab.GovtCrookedOffic.DemBreaker <- ftable(ptab.DemBreaker.GovtCrookedOffic, col.vars=2)
+fptab.GovtCareYouThink.DemBreaker <- ftable(ptab.DemBreaker.GovtCareYouThink, col.vars=2)
+fptab.HaveSayInGovt.DemBreaker <- ftable(ptab.DemBreaker.HaveSayInGovt, col.vars=2)
+fptab.PolGovComplicated.DemBreaker <- ftable(ptab.DemBreaker.PolGovComplicated, col.vars=2)
+fptab.VoteMatters.DemBreaker <- ftable(ptab.DemBreaker.VoteMatters, col.vars=2)
+fptab.TrustPeople.DemBreaker <- ftable(ptab.DemBreaker.TrustPeople, col.vars=2)
+
+percDemBreakerPolSys <-   rbind(
+    fptab.PresPerfApprove.DemBreaker,
+    fptab.DiffTweenParties.DemBreaker,
+    fptab.FedGovInterests.DemBreaker,
+    fptab.FedGovWasteTaxes.DemBreaker,
+    fptab.GovtCrookedOffic.DemBreaker,
+    fptab.GovtCareYouThink.DemBreaker,
+    fptab.HaveSayInGovt.DemBreaker,
+    fptab.PolGovComplicated.DemBreaker,
+    fptab.VoteMatters.DemBreaker,
+    fptab.TrustPeople.DemBreaker
+  )
+
+freqDemBreakerPolSys <-   rbind(
+    ftab.DemBreaker.PresPerfApprove,
+    ftab.DemBreaker.DiffTweenParties,
+    ftab.DemBreaker.FedGovInterests,
+    ftab.DemBreaker.FedGovWasteTaxes,
+    ftab.DemBreaker.GovtCrookedOffic,
+    ftab.DemBreaker.GovtCareYouThink,
+    ftab.DemBreaker.HaveSayInGovt,
+    ftab.DemBreaker.PolGovComplicated,
+    ftab.DemBreaker.VoteMatters,
+    ftab.DemBreaker.TrustPeople
+  )
+show_html(
+cbind(percDemBreakerPolSys, freqDemBreakerPolSys)
+)
+```
+
+#Election
+
+```{r}
+#Frequencies
+ftab.DemBreaker.DecisionTime <- ftable(xtabs(~DecisionTime+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.PrePresIntent <- ftable(xtabs(~PrePresIntent + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.PresElectionClose <- ftable(xtabs(~PresElectionClose + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.NumMediaTypes <- ftable(xtabs(~NumMediaTypes + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.PresIntendActual <- ftable(xtabs(~PresIntendActual+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.Registered <- ftable(xtabs(~Registered + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.NumParticActs6 <- ftable(xtabs(~NumParticActs6 + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.LocalTicketSplit <- ftable(xtabs(~LocalTicketSplit + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.NationalTicketSplit <- ftable(xtabs(~NationalTicketSplit + DemBreaker, data=dsHistPres))
+
+ptab.DemBreaker.DecisionTime <- percentages(DecisionTime ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.PrePresIntent <- percentages(PrePresIntent ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.PresElectionClose <- percentages(PresElectionClose ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.NumMediaTypes <- percentages(NumMediaTypes ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.PresIntendActual <- percentages(PresIntendActual ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.Registered <- percentages(Registered ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.NumParticActs6 <- percentages(NumParticActs6 ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.LocalTicketSplit <- percentages(LocalTicketSplit ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.NationalTicketSplit <- percentages(NationalTicketSplit ~ DemBreaker, data=dsHistPres)
+
+fptab.DecisionTime.DemBreaker <- ftable(ptab.DemBreaker.DecisionTime, col.vars=2)
+fptab.PrePresIntent.DemBreaker <- ftable(ptab.DemBreaker.PrePresIntent, col.vars=2)
+fptab.PresElectionClose.DemBreaker <- ftable(ptab.DemBreaker.PresElectionClose, col.vars=2)
+fptab.NumMediaTypes.DemBreaker <- ftable(ptab.DemBreaker.NumMediaTypes, col.vars=2)
+fptab.PresIntendActual.DemBreaker <- ftable(ptab.DemBreaker.PresIntendActual, col.vars=2)
+fptab.Registered.DemBreaker <- ftable(ptab.DemBreaker.Registered, col.vars=2)
+fptab.NumParticActs6.DemBreaker <- ftable(ptab.DemBreaker.NumParticActs6, col.vars=2)
+fptab.LocalTicketSplit.DemBreaker <- ftable(ptab.DemBreaker.LocalTicketSplit, col.vars=2)
+fptab.NationalTicketSplit.DemBreaker <- ftable(ptab.DemBreaker.NationalTicketSplit, col.vars=2)
+
+percDemBreakerElec <-   rbind(
+    fptab.DecisionTime.DemBreaker,
+    fptab.PrePresIntent.DemBreaker,
+    fptab.PresElectionClose.DemBreaker,
+    fptab.NumMediaTypes.DemBreaker,
+    fptab.PresIntendActual.DemBreaker,
+    fptab.Registered.DemBreaker,
+    fptab.NumParticActs6.DemBreaker,
+    fptab.LocalTicketSplit.DemBreaker,
+    fptab.NationalTicketSplit.DemBreaker
+  )
+
+freqDemBreakerElec <-   rbind(
+    ftab.DemBreaker.DecisionTime,
+    ftab.DemBreaker.PrePresIntent,
+    ftab.DemBreaker.PresElectionClose,
+    ftab.DemBreaker.NumMediaTypes,
+    ftab.DemBreaker.PresIntendActual,
+    ftab.DemBreaker.Registered,
+    ftab.DemBreaker.NumParticActs6,
+    ftab.DemBreaker.LocalTicketSplit,
+    ftab.DemBreaker.NationalTicketSplit
+    
+  )
+show_html(
+cbind(percDemBreakerElec, freqDemBreakerElec)
+)
+```
+
+#Issues and Opinion
+```{r}
+#Frequencies
+ftab.DemBreaker.BetterOffUSIsolated <- ftable(xtabs(~BetterOffUSIsolated+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.AidToBlacksScale <- ftable(xtabs(~AidToBlacksScale + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.WhenAbortionAllow <- ftable(xtabs(~WhenAbortionAllow + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.ReligiousGuidance <- ftable(xtabs(~ReligiousGuidance + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.LifestyleSocietyBreak <- ftable(xtabs(~LifestyleSocietyBreak+DemBreaker, data=dsHistPres))
+ftab.DemBreaker.EmphasisTradMoreValues <- ftable(xtabs(~EmphasisTradMoreValues + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.EconomyBetterWorse <- ftable(xtabs(~EconomyBetterWorse + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.LawGays <- ftable(xtabs(~LawGays + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.BetterOrWorseOff <- ftable(xtabs(~BetterOrWorseOff + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.FedSpendSchool <- ftable(xtabs(~FedSpendSchool + DemBreaker, data=dsHistPres))
+ftab.DemBreaker.EqualRights <- ftable(xtabs(~EqualRights + DemBreaker, data=dsHistPres))
+
+
+ptab.DemBreaker.BetterOffUSIsolated <- percentages(BetterOffUSIsolated ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.AidToBlacksScale <- percentages(AidToBlacksScale ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.WhenAbortionAllow <- percentages(WhenAbortionAllow ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.ReligiousGuidance <- percentages(ReligiousGuidance ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.LifestyleSocietyBreak <- percentages(LifestyleSocietyBreak ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.EmphasisTradMoreValues <- percentages(EmphasisTradMoreValues ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.EconomyBetterWorse <- percentages(EconomyBetterWorse ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.LawGays <- percentages(LawGays ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.BetterOrWorseOff <- percentages(BetterOrWorseOff ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.FedSpendSchool <- percentages(FedSpendSchool ~ DemBreaker, data=dsHistPres)
+ptab.DemBreaker.EqualRights <- percentages(EqualRights ~ DemBreaker, data=dsHistPres)
+
+fptab.BetterOffUSIsolated.DemBreaker <- ftable(ptab.DemBreaker.BetterOffUSIsolated, col.vars=2)
+fptab.AidToBlacksScale.DemBreaker <- ftable(ptab.DemBreaker.AidToBlacksScale, col.vars=2)
+fptab.WhenAbortionAllow.DemBreaker <- ftable(ptab.DemBreaker.WhenAbortionAllow, col.vars=2)
+fptab.ReligiousGuidance.DemBreaker <- ftable(ptab.DemBreaker.ReligiousGuidance, col.vars=2)
+fptab.LifestyleSocietyBreak.DemBreaker <- ftable(ptab.DemBreaker.LifestyleSocietyBreak, col.vars=2)
+fptab.EmphasisTradMoreValues.DemBreaker <- ftable(ptab.DemBreaker.EmphasisTradMoreValues, col.vars=2)
+fptab.EconomyBetterWorse.DemBreaker <- ftable(ptab.DemBreaker.EconomyBetterWorse, col.vars=2)
+fptab.LawGays.DemBreaker <- ftable(ptab.DemBreaker.LawGays, col.vars=2)
+fptab.BetterOrWorseOff.DemBreaker <- ftable(ptab.DemBreaker.BetterOrWorseOff, col.vars=2)
+fptab.FedSpendSchool.DemBreaker <- ftable(ptab.DemBreaker.FedSpendSchool, col.vars=2)
+fptab.EqualRights.DemBreaker <- ftable(ptab.DemBreaker.EqualRights, col.vars=2)
+
+percDemBreakerIssOp <-   rbind(
+    fptab.BetterOffUSIsolated.DemBreaker,
+    fptab.AidToBlacksScale.DemBreaker,
+    fptab.WhenAbortionAllow.DemBreaker,
+    fptab.ReligiousGuidance.DemBreaker,
+    fptab.LifestyleSocietyBreak.DemBreaker,
+    fptab.EmphasisTradMoreValues.DemBreaker,
+    fptab.EconomyBetterWorse.DemBreaker,
+    fptab.LawGays.DemBreaker,
+    fptab.BetterOrWorseOff.DemBreaker,
+    fptab.FedSpendSchool.DemBreaker,
+    fptab.EqualRights.DemBreaker
+  )
+
+freqDemBreakerIssOp <-   rbind(
+    ftab.DemBreaker.BetterOffUSIsolated,
+    ftab.DemBreaker.AidToBlacksScale,
+    ftab.DemBreaker.WhenAbortionAllow,
+    ftab.DemBreaker.ReligiousGuidance,
+    ftab.DemBreaker.LifestyleSocietyBreak,
+    ftab.DemBreaker.EmphasisTradMoreValues,
+    ftab.DemBreaker.EconomyBetterWorse,
+    ftab.DemBreaker.LawGays,
+    ftab.DemBreaker.BetterOrWorseOff,
+    ftab.DemBreaker.FedSpendSchool,
+    ftab.DemBreaker.EqualRights
+  )
+show_html(
+cbind(percDemBreakerIssOp, freqDemBreakerIssOp)
+)

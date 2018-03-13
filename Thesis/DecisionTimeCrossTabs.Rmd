@@ -1,0 +1,401 @@
+---
+title: "ThesisTabs"
+author: "Andrew Goldberg"
+date: "December 13, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+DecisionTime 
+```{r}
+#Frequencies
+ftab.DecisionTime.Gender <- ftable(xtabs(~Gender+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.Race4 <- ftable(xtabs(~Race4 + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.Education <- ftable(xtabs(~Education + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.IncomeGroup <- ftable(xtabs(~IncomeGroup + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.Occupation <- ftable(xtabs(~Occupation + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.Religion <- ftable(xtabs(~Religion + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.SocialClass <- ftable(xtabs(~SocialClass + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.JobWorry <- ftable(xtabs(~JobWorry + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.Year <- ftable(xtabs(~Year + DecisionTime, data=dsHistPres))
+
+#Percentages
+ptab.DecisionTime.Gender <- percentages( Gender~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.Race4 <- percentages(Race4~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.Education <- percentages(Education~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.IncomeGroup <- percentages(IncomeGroup~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.Occupation <- percentages(Occupation~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.Religion <- percentages(Religion~ DecisionTime,data=dsHistPres)
+ptab.DecisionTime.SocialClass <- percentages(SocialClass~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.JobWorry <- percentages(JobWorry~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.Year <- percentages(Year~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime <- percentages(~DecisionTime~ DecisionTime, data = dsHistPres)
+
+fptab.Gender.DecisionTime <- ftable(ptab.DecisionTime.Gender, col.vars=2)
+fptab.Race4.DecisionTime <- ftable(ptab.DecisionTime.Race4, col.vars=2)
+fptab.Education.DecisionTime <- ftable(ptab.DecisionTime.Education, col.vars=2)
+fptab.IncomeGroup.DecisionTime <- ftable(ptab.DecisionTime.IncomeGroup, col.vars=2)
+fptab.Occupation.DecisionTime <- ftable(ptab.DecisionTime.Occupation, col.vars=2)
+fptab.Religion.DecisionTime <- ftable(ptab.DecisionTime.Religion, col.vars=2)
+fptab.SocialClass.DecisionTime <- ftable(ptab.DecisionTime.SocialClass, col.vars=2)
+fptab.JobWorry.DecisionTime <- ftable(ptab.DecisionTime.JobWorry, col.vars=2)
+fptab.Year.DecisionTime <- ftable(ptab.DecisionTime.Year, col.vars=2)
+
+percDecisionTime <-   rbind(
+    fptab.Gender.DecisionTime,
+    fptab.Race4.DecisionTime,
+    fptab.Education.DecisionTime,
+    fptab.IncomeGroup.DecisionTime,
+    fptab.Occupation.DecisionTime,
+    fptab.Religion.DecisionTime,
+    fptab.SocialClass.DecisionTime,
+    fptab.JobWorry.DecisionTime,
+    fptab.Year.DecisionTime
+  )
+
+freqDecisionTime <-   rbind(
+    ftab.DecisionTime.Gender,
+    ftab.DecisionTime.Race4,
+    ftab.DecisionTime.Education,
+    ftab.DecisionTime.IncomeGroup,
+    ftab.DecisionTime.Occupation,
+    ftab.DecisionTime.Religion,
+    ftab.DecisionTime.SocialClass,
+    ftab.DecisionTime.JobWorry,
+    ftab.DecisionTime.Year
+  )
+show_html(
+cbind(percDecisionTime, freqDecisionTime)
+)
+```
+
+#Partisanship
+```{r}
+#Frequencies
+ftab.DecisionTime.PartyIdent7 <- ftable(xtabs(~PartyIdent7+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.PoliticalInterest <- ftable(xtabs(~PoliticalInterest + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.CarePartyPres <- ftable(xtabs(~CarePartyPres + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.InterestPublicAffairs <- ftable(xtabs(~InterestPublicAffairs + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.LibConScale <- ftable(xtabs(~LibConScale + DecisionTime, data=dsHistPres))
+
+#Percentages
+ptab.DecisionTime.PartyIdent7 <- percentages( PartyIdent7~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.PoliticalInterest <- percentages(PoliticalInterest~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.CarePartyPres <- percentages(CarePartyPres~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.InterestPublicAffairs <- percentages(InterestPublicAffairs~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.LibConScale <- percentages(LibConScale~DecisionTime, data=dsHistPres)
+
+fptab.PartyIdent7.DecisionTime <- ftable(ptab.DecisionTime.PartyIdent7, col.vars=2)
+fptab.PoliticalInterest.DecisionTime <- ftable(ptab.DecisionTime.PoliticalInterest, col.vars=2)
+fptab.CarePartyPres.DecisionTime <- ftable(ptab.DecisionTime.CarePartyPres, col.vars=2)
+fptab.InterestPublicAffairs.DecisionTime <- ftable(ptab.DecisionTime.InterestPublicAffairs, col.vars=2)
+fptab.LibConScale.DecisionTime <- ftable(ptab.DecisionTime.LibConScale, col.vars=2)
+
+percDecisionTimePol <-   rbind(
+    fptab.PartyIdent7.DecisionTime,
+    fptab.PoliticalInterest.DecisionTime,
+    fptab.CarePartyPres.DecisionTime,
+    fptab.InterestPublicAffairs.DecisionTime,
+    fptab.LibConScale.DecisionTime
+  )
+
+freqDecisionTimePol <-   rbind(
+    ftab.DecisionTime.PartyIdent7,
+    ftab.DecisionTime.PoliticalInterest,
+    ftab.DecisionTime.CarePartyPres,
+    ftab.DecisionTime.InterestPublicAffairs,
+    ftab.DecisionTime.LibConScale
+  )
+show_html(
+cbind(percDecisionTimePol, freqDecisionTimePol)
+)
+```
+#Candidate Evaluations
+```{r}
+#Frequencies
+ftab.DecisionTime.DemCandAngry <- ftable(xtabs(~DemCandAngry+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DemCandAfraid <- ftable(xtabs(~DemCandAfraid + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DemCandHopeful <- ftable(xtabs(~DemCandHopeful + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DemCandProud <- ftable(xtabs(~DemCandProud + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DemCandKnowledge <- ftable(xtabs(~DemCandKnowledge+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DemCandLeader <- ftable(xtabs(~DemCandLeader + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DemCandCares <- ftable(xtabs(~DemCandCares + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandAngry <- ftable(xtabs(~RepCandAngry + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandAfraid <- ftable(xtabs(~RepCandAfraid + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandHopeful <- ftable(xtabs(~RepCandHopeful + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandProud <- ftable(xtabs(~RepCandProud + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandKnowledge <- ftable(xtabs(~RepCandKnowledge + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandLeader <- ftable(xtabs(~RepCandLeader + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.RepCandCares <- ftable(xtabs(~RepCandCares + DecisionTime, data=dsHistPres))
+
+#Percentages
+ptab.DecisionTime.DemCandAngry <- percentages( DemCandAngry~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DemCandAfraid <- percentages(DemCandAfraid~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DemCandHopeful <- percentages(DemCandHopeful~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DemCandProud <- percentages(DemCandProud~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DemCandKnowledge <- percentages( DemCandKnowledge~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DemCandLeader <- percentages(DemCandLeader~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DemCandCares <- percentages(DemCandCares~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.RepCandAngry <- percentages(RepCandAngry~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.RepCandAfraid <- percentages(RepCandAfraid~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.RepCandHopeful <- percentages(RepCandHopeful~DecisionTime,data=dsHistPres)
+ptab.DecisionTime.RepCandProud <- percentages(RepCandProud~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.RepCandKnowledge <- percentages(RepCandKnowledge~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.RepCandLeader <- percentages(RepCandLeader~DecisionTime, data=dsHistPres)
+ptab.DecisionTime.RepCandCares <- percentages(RepCandCares~DecisionTime, data=dsHistPres)
+
+
+fptab.DemCandAngry.DecisionTime <- ftable(ptab.DecisionTime.DemCandAngry, col.vars=2)
+fptab.DemCandAfraid.DecisionTime <- ftable(ptab.DecisionTime.DemCandAfraid, col.vars=2)
+fptab.DemCandHopeful.DecisionTime <- ftable(ptab.DecisionTime.DemCandHopeful, col.vars=2)
+fptab.DemCandProud.DecisionTime <- ftable(ptab.DecisionTime.DemCandProud, col.vars=2)
+fptab.DemCandKnowledge.DecisionTime <- ftable(ptab.DecisionTime.DemCandKnowledge, col.vars=2)
+fptab.DemCandLeader.DecisionTime <- ftable(ptab.DecisionTime.DemCandLeader, col.vars=2)
+fptab.DemCandCares.DecisionTime <- ftable(ptab.DecisionTime.DemCandCares, col.vars=2)
+fptab.RepCandAngry.DecisionTime <- ftable(ptab.DecisionTime.RepCandAngry, col.vars=2)
+fptab.RepCandAfraid.DecisionTime <- ftable(ptab.DecisionTime.RepCandAfraid, col.vars=2)
+fptab.RepCandHopeful.DecisionTime <- ftable(ptab.DecisionTime.RepCandHopeful, col.vars=2)
+fptab.RepCandProud.DecisionTime <- ftable(ptab.DecisionTime.RepCandProud, col.vars=2)
+fptab.RepCandKnowledge.DecisionTime <- ftable(ptab.DecisionTime.RepCandKnowledge, col.vars=2)
+fptab.RepCandLeader.DecisionTime <- ftable(ptab.DecisionTime.RepCandLeader, col.vars=2)
+fptab.RepCandCares.DecisionTime <- ftable(ptab.DecisionTime.RepCandCares, col.vars=2)
+
+percDecisionTimeCand <-   rbind(
+    fptab.DemCandAngry.DecisionTime,
+    fptab.DemCandAfraid.DecisionTime,
+    fptab.DemCandHopeful.DecisionTime,
+    fptab.DemCandProud.DecisionTime,
+    fptab.DemCandKnowledge.DecisionTime,
+    fptab.DemCandLeader.DecisionTime,
+    fptab.DemCandCares.DecisionTime,
+    fptab.RepCandAngry.DecisionTime,
+    fptab.RepCandAfraid.DecisionTime,
+    fptab.RepCandHopeful.DecisionTime,
+    fptab.RepCandProud.DecisionTime,
+    fptab.RepCandKnowledge.DecisionTime,
+    fptab.RepCandLeader.DecisionTime,
+    fptab.RepCandCares.DecisionTime
+  )
+
+freqDecisionTimeCand <-   rbind(
+    ftab.DecisionTime.DemCandAngry,
+    ftab.DecisionTime.DemCandAfraid,
+    ftab.DecisionTime.DemCandHopeful,
+    ftab.DecisionTime.DemCandProud,
+    ftab.DecisionTime.DemCandKnowledge,
+    ftab.DecisionTime.DemCandLeader,
+    ftab.DecisionTime.DemCandCares,
+    ftab.DecisionTime.RepCandAngry,
+    ftab.DecisionTime.RepCandAfraid,
+    ftab.DecisionTime.RepCandHopeful,
+    ftab.DecisionTime.RepCandProud,
+    ftab.DecisionTime.RepCandKnowledge,
+    ftab.DecisionTime.RepCandLeader,
+    ftab.DecisionTime.RepCandCares
+  )
+show_html(
+cbind(percDecisionTimeCand, freqDecisionTimeCand)
+)
+```
+#Support for political system
+#Frequencies
+```{r}
+ftab.DecisionTime.PresPerfApprove <- ftable(xtabs(~PresPerfApprove+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.DiffTweenParties <- ftable(xtabs(~DiffTweenParties + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.FedGovInterests <- ftable(xtabs(~FedGovInterests + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.FedGovWasteTaxes <- ftable(xtabs(~FedGovWasteTaxes + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.GovtCrookedOffic <- ftable(xtabs(~GovtCrookedOffic+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.GovtCareYouThink <- ftable(xtabs(~GovtCareYouThink + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.HaveSayInGovt <- ftable(xtabs(~HaveSayInGovt + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.PolGovComplicated <- ftable(xtabs(~PolGovComplicated + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.VoteMatters <- ftable(xtabs(~VoteMatters + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.TrustPeople <- ftable(xtabs(~TrustPeople + DecisionTime, data=dsHistPres))
+
+ptab.DecisionTime.PresPerfApprove <- percentages(PresPerfApprove ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.DiffTweenParties <- percentages(DiffTweenParties ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.FedGovInterests <- percentages(FedGovInterests ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.FedGovWasteTaxes <- percentages(FedGovWasteTaxes ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.GovtCrookedOffic <- percentages(GovtCrookedOffic ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.GovtCareYouThink <- percentages(GovtCareYouThink ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.HaveSayInGovt <- percentages(HaveSayInGovt ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.PolGovComplicated <- percentages(PolGovComplicated ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.VoteMatters <- percentages(VoteMatters ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.TrustPeople <- percentages(TrustPeople ~ DecisionTime, data=dsHistPres)
+
+fptab.PresPerfApprove.DecisionTime <- ftable(ptab.DecisionTime.PresPerfApprove, col.vars=2)
+fptab.DiffTweenParties.DecisionTime <- ftable(ptab.DecisionTime.DiffTweenParties, col.vars=2)
+fptab.FedGovInterests.DecisionTime <- ftable(ptab.DecisionTime.FedGovInterests, col.vars=2)
+fptab.FedGovWasteTaxes.DecisionTime <- ftable(ptab.DecisionTime.FedGovWasteTaxes, col.vars=2)
+fptab.GovtCrookedOffic.DecisionTime <- ftable(ptab.DecisionTime.GovtCrookedOffic, col.vars=2)
+fptab.GovtCareYouThink.DecisionTime <- ftable(ptab.DecisionTime.GovtCareYouThink, col.vars=2)
+fptab.HaveSayInGovt.DecisionTime <- ftable(ptab.DecisionTime.HaveSayInGovt, col.vars=2)
+fptab.PolGovComplicated.DecisionTime <- ftable(ptab.DecisionTime.PolGovComplicated, col.vars=2)
+fptab.VoteMatters.DecisionTime <- ftable(ptab.DecisionTime.VoteMatters, col.vars=2)
+fptab.TrustPeople.DecisionTime <- ftable(ptab.DecisionTime.TrustPeople, col.vars=2)
+
+percDecisionTimePolSys <-   rbind(
+    fptab.PresPerfApprove.DecisionTime,
+    fptab.DiffTweenParties.DecisionTime,
+    fptab.FedGovInterests.DecisionTime,
+    fptab.FedGovWasteTaxes.DecisionTime,
+    fptab.GovtCrookedOffic.DecisionTime,
+    fptab.GovtCareYouThink.DecisionTime,
+    fptab.HaveSayInGovt.DecisionTime,
+    fptab.PolGovComplicated.DecisionTime,
+    fptab.VoteMatters.DecisionTime,
+    fptab.TrustPeople.DecisionTime
+  )
+
+freqDecisionTimePolSys <-   rbind(
+    ftab.DecisionTime.PresPerfApprove,
+    ftab.DecisionTime.DiffTweenParties,
+    ftab.DecisionTime.FedGovInterests,
+    ftab.DecisionTime.FedGovWasteTaxes,
+    ftab.DecisionTime.GovtCrookedOffic,
+    ftab.DecisionTime.GovtCareYouThink,
+    ftab.DecisionTime.HaveSayInGovt,
+    ftab.DecisionTime.PolGovComplicated,
+    ftab.DecisionTime.VoteMatters,
+    ftab.DecisionTime.TrustPeople
+  )
+show_html(
+cbind(percDecisionTimePolSys, freqDecisionTimePolSys)
+)
+```
+
+#Election
+
+```{r}
+#Frequencies
+ftab.DecisionTime.DecisionTime <- ftable(xtabs(~DecisionTime+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.PrePresIntent <- ftable(xtabs(~PrePresIntent + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.PresElectionClose <- ftable(xtabs(~PresElectionClose + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.NumMediaTypes <- ftable(xtabs(~NumMediaTypes + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.PresIntendActual <- ftable(xtabs(~PresIntendActual+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.Registered <- ftable(xtabs(~Registered + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.NumParticActs6 <- ftable(xtabs(~NumParticActs6 + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.LocalTicketSplit <- ftable(xtabs(~LocalTicketSplit + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.NationalTicketSplit <- ftable(xtabs(~NationalTicketSplit + DecisionTime, data=dsHistPres))
+
+ptab.DecisionTime.DecisionTime <- percentages(DecisionTime ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.PrePresIntent <- percentages(PrePresIntent ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.PresElectionClose <- percentages(PresElectionClose ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.NumMediaTypes <- percentages(NumMediaTypes ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.PresIntendActual <- percentages(PresIntendActual ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.Registered <- percentages(Registered ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.NumParticActs6 <- percentages(NumParticActs6 ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.LocalTicketSplit <- percentages(LocalTicketSplit ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.NationalTicketSplit <- percentages(NationalTicketSplit ~ DecisionTime, data=dsHistPres)
+
+fptab.DecisionTime.DecisionTime <- ftable(ptab.DecisionTime.DecisionTime, col.vars=2)
+fptab.PrePresIntent.DecisionTime <- ftable(ptab.DecisionTime.PrePresIntent, col.vars=2)
+fptab.PresElectionClose.DecisionTime <- ftable(ptab.DecisionTime.PresElectionClose, col.vars=2)
+fptab.NumMediaTypes.DecisionTime <- ftable(ptab.DecisionTime.NumMediaTypes, col.vars=2)
+fptab.PresIntendActual.DecisionTime <- ftable(ptab.DecisionTime.PresIntendActual, col.vars=2)
+fptab.Registered.DecisionTime <- ftable(ptab.DecisionTime.Registered, col.vars=2)
+fptab.NumParticActs6.DecisionTime <- ftable(ptab.DecisionTime.NumParticActs6, col.vars=2)
+fptab.LocalTicketSplit.DecisionTime <- ftable(ptab.DecisionTime.LocalTicketSplit, col.vars=2)
+fptab.NationalTicketSplit.DecisionTime <- ftable(ptab.DecisionTime.NationalTicketSplit, col.vars=2)
+
+percDecisionTimeElec <-   rbind(
+    fptab.DecisionTime.DecisionTime,
+    fptab.PrePresIntent.DecisionTime,
+    fptab.PresElectionClose.DecisionTime,
+    fptab.NumMediaTypes.DecisionTime,
+    fptab.PresIntendActual.DecisionTime,
+    fptab.Registered.DecisionTime,
+    fptab.NumParticActs6.DecisionTime,
+    fptab.LocalTicketSplit.DecisionTime,
+    fptab.NationalTicketSplit.DecisionTime
+  )
+
+freqDecisionTimeElec <-   rbind(
+    ftab.DecisionTime.DecisionTime,
+    ftab.DecisionTime.PrePresIntent,
+    ftab.DecisionTime.PresElectionClose,
+    ftab.DecisionTime.NumMediaTypes,
+    ftab.DecisionTime.PresIntendActual,
+    ftab.DecisionTime.Registered,
+    ftab.DecisionTime.NumParticActs6,
+    ftab.DecisionTime.LocalTicketSplit,
+    ftab.DecisionTime.NationalTicketSplit
+    
+  )
+show_html(
+cbind(percDecisionTimeElec, freqDecisionTimeElec)
+)
+```
+
+#Issues and Opinion
+```{r}
+#Frequencies
+ftab.DecisionTime.BetterOffUSIsolated <- ftable(xtabs(~BetterOffUSIsolated+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.AidToBlacksScale <- ftable(xtabs(~AidToBlacksScale + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.WhenAbortionAllow <- ftable(xtabs(~WhenAbortionAllow + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.ReligiousGuidance <- ftable(xtabs(~ReligiousGuidance + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.LifestyleSocietyBreak <- ftable(xtabs(~LifestyleSocietyBreak+DecisionTime, data=dsHistPres))
+ftab.DecisionTime.EmphasisTradMoreValues <- ftable(xtabs(~EmphasisTradMoreValues + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.EconomyBetterWorse <- ftable(xtabs(~EconomyBetterWorse + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.LawGays <- ftable(xtabs(~LawGays + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.BetterOrWorseOff <- ftable(xtabs(~BetterOrWorseOff + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.FedSpendSchool <- ftable(xtabs(~FedSpendSchool + DecisionTime, data=dsHistPres))
+ftab.DecisionTime.EqualRights <- ftable(xtabs(~EqualRights + DecisionTime, data=dsHistPres))
+
+
+ptab.DecisionTime.BetterOffUSIsolated <- percentages(BetterOffUSIsolated ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.AidToBlacksScale <- percentages(AidToBlacksScale ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.WhenAbortionAllow <- percentages(WhenAbortionAllow ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.ReligiousGuidance <- percentages(ReligiousGuidance ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.LifestyleSocietyBreak <- percentages(LifestyleSocietyBreak ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.EmphasisTradMoreValues <- percentages(EmphasisTradMoreValues ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.EconomyBetterWorse <- percentages(EconomyBetterWorse ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.LawGays <- percentages(LawGays ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.BetterOrWorseOff <- percentages(BetterOrWorseOff ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.FedSpendSchool <- percentages(FedSpendSchool ~ DecisionTime, data=dsHistPres)
+ptab.DecisionTime.EqualRights <- percentages(EqualRights ~ DecisionTime, data=dsHistPres)
+
+fptab.BetterOffUSIsolated.DecisionTime <- ftable(ptab.DecisionTime.BetterOffUSIsolated, col.vars=2)
+fptab.AidToBlacksScale.DecisionTime <- ftable(ptab.DecisionTime.AidToBlacksScale, col.vars=2)
+fptab.WhenAbortionAllow.DecisionTime <- ftable(ptab.DecisionTime.WhenAbortionAllow, col.vars=2)
+fptab.ReligiousGuidance.DecisionTime <- ftable(ptab.DecisionTime.ReligiousGuidance, col.vars=2)
+fptab.LifestyleSocietyBreak.DecisionTime <- ftable(ptab.DecisionTime.LifestyleSocietyBreak, col.vars=2)
+fptab.EmphasisTradMoreValues.DecisionTime <- ftable(ptab.DecisionTime.EmphasisTradMoreValues, col.vars=2)
+fptab.EconomyBetterWorse.DecisionTime <- ftable(ptab.DecisionTime.EconomyBetterWorse, col.vars=2)
+fptab.LawGays.DecisionTime <- ftable(ptab.DecisionTime.LawGays, col.vars=2)
+fptab.BetterOrWorseOff.DecisionTime <- ftable(ptab.DecisionTime.BetterOrWorseOff, col.vars=2)
+fptab.FedSpendSchool.DecisionTime <- ftable(ptab.DecisionTime.FedSpendSchool, col.vars=2)
+fptab.EqualRights.DecisionTime <- ftable(ptab.DecisionTime.EqualRights, col.vars=2)
+
+percDecisionTimeIssOp <-   rbind(
+    fptab.BetterOffUSIsolated.DecisionTime,
+    fptab.AidToBlacksScale.DecisionTime,
+    fptab.WhenAbortionAllow.DecisionTime,
+    fptab.ReligiousGuidance.DecisionTime,
+    fptab.LifestyleSocietyBreak.DecisionTime,
+    fptab.EmphasisTradMoreValues.DecisionTime,
+    fptab.EconomyBetterWorse.DecisionTime,
+    fptab.LawGays.DecisionTime,
+    fptab.BetterOrWorseOff.DecisionTime,
+    fptab.FedSpendSchool.DecisionTime,
+    fptab.EqualRights.DecisionTime
+  )
+
+freqDecisionTimeIssOp <-   rbind(
+    ftab.DecisionTime.BetterOffUSIsolated,
+    ftab.DecisionTime.AidToBlacksScale,
+    ftab.DecisionTime.WhenAbortionAllow,
+    ftab.DecisionTime.ReligiousGuidance,
+    ftab.DecisionTime.LifestyleSocietyBreak,
+    ftab.DecisionTime.EmphasisTradMoreValues,
+    ftab.DecisionTime.EconomyBetterWorse,
+    ftab.DecisionTime.LawGays,
+    ftab.DecisionTime.BetterOrWorseOff,
+    ftab.DecisionTime.FedSpendSchool,
+    ftab.DecisionTime.EqualRights
+  )
+show_html(
+cbind(percDecisionTimeIssOp, freqDecisionTimeIssOp)
+)

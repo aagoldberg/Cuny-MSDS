@@ -1,0 +1,1057 @@
+---
+title: "ThesisFinal"
+author: "Andrew Goldberg"
+date: "11/20/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r import historic, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(foreign)
+library(memisc)
+library(corrgram)
+library(caret)
+library(knitr)
+library(DT)
+library(MASS)
+library(elasticnet)
+library(lars)
+library(pls)
+
+
+# datHist <- as.data.set(spss.system.file("C:/Users/andrew/Desktop/Thesis/anes_timseries_cdf.sav"))
+download.file(url= "https://storage.googleapis.com/spss_andrew_gold/anes_timseries_cdf.sav", destfile="localfile.sav", method = "curl")
+datHist <- as.data.set(spss.system.file("localfile.sav"))
+
+#Upload chosen variable list and select -- data.set
+histCodeNameValid <- read.csv("https://raw.githubusercontent.com/aagoldberg/Thesis/master/HistCodeNameViable.csv")
+histVars <- trimws(as.character(histCodeNameValid$varCodeHist))
+histVars <- histVars[histVars != ""]
+
+#Limit to viable variables
+vctseqmod <- paste0('c(', gsub('\"', '', histCodeNameValid$Valid), ')')
+fctParse <- function(x){eval(parse(text = paste0(x)))}
+lstseq <- lapply(vctseqmod, fctParse)
+
+SFHist <- datHist[histVars]  
+for(i in 3:length(histVars)){
+  VarUnique <- unique(((SFHist[[histVars[i]]])))
+  SetToMissing <- VarUnique[!(VarUnique %in% lstseq[[i]])]
+  SFHist[[histVars[i]]] <- as.item(SFHist[[histVars[i]]], missing.values = SetToMissing)
+}
+
+histVarNames <- trimws(as.character(histCodeNameValid$VarName))
+histVarNames <- histVarNames[histVarNames != ""]
+colnames(SFHist) <- histVarNames
+
+#Splitting race categories, unflagging age data
+SFHistSplit <- within(SFHist,{
+     White <- cases(Race4 == 1 -> 1,
+                    Race4 %in% c(2,3,4,5) -> 0,
+                    Race4 == -9 -> NA)
+     labels(White) <- c(
+                    White = 1,
+                    NonWhite = 0)
+     Black <- cases(Race4 == 2 -> 1,
+                    Race4 %in% c(1,3,4,5) -> 0,
+                    Race4 == -9 -> NA)
+     labels(Black) <- c(
+                    Black = 1,
+                    NonBlack = 0)
+     Hispanic <- cases(Race4 == 4 -> 1,
+                    Race4 %in% c(1,2,3,5) -> 0,
+                    Race4 == -9 -> NA)
+     labels(Hispanic) <- c(
+                    Hispanic = 1,
+                    NonHispanic = 0)
+     valid.values(Age) <- c(18:96)
+     })
+```
+Attach 2016 data
+```{r import 2016}
+#Download data
+download.file(url= "https://storage.googleapis.com/spss_andrew_gold/anes_timeseries_2016.sav", destfile="localfile16.sav", method = "curl")
+dat16 <- as.data.set(spss.system.file("localfile16.sav"))
+#dat16 <- as.data.set(spss.system.file("C:/Users/andrew/Desktop/Thesis/anes_timeseries_2016.sav"))
+histVars16 <- trimws(as.character(histCodeNameValid$A2016))
+histVars16 = histVars16[histVars16 != ""]
+dfHist16 <- subset(dat16, select = histVars16)
+
+varNames16 <- trimws(levels(histCodeNameValid$A2016))
+varNames16 = varNames16[varNames16 != ""]
+histVarNames16 <- histCodeNameValid$VarName[(trimws(histCodeNameValid$A2016) %in% noquote(varNames16))]
+colnames(dfHist16) <- histVarNames16
+
+#create NumPoliticalActs variable to match historic data
+#written letter/ donate money / display button,sticker / work for party or candidate / attend meetingsmrallies / influence others
+dat16$NumParticActs6 <- rowSums(as.data.frame(dat16[c("v162010", "v162011", "v162012", "v162013", "v162014")]) == "2. No") + 1
+dfHist16$NumParticActs6 <- dat16$NumParticActs6
+
+#Add placeholder variables for data not yet published from 2016
+dfHist16$LocalTicketSplit <- NA
+dfHist16$DecisionTime <- NA
+dfHist16$NationalTicketSplit <- NA
+dfHist16$IncomeGroup <- NA
+dfHist16$SocialClass <- NA
+dfHist16$Occupation <- NA
+dfHist16$Year <- rep("2016", nrow(dfHist16))
+
+#Label missing data and simplify some variables fields
+dfHist16Re <- within(dfHist16,{
+  missing.values(Age) <- c(-9,-8)
+     missing.values(ObsInfoLvlPre) <- c(-8,-1)
+     missing.values(ObsInfoLvlPost) <- c(-6,-1)
+     missing.values(Gender) <- c(-9, -8, 3)
+     missing.values(Age) <- c(-9, -8)
+     missing.values(Education) <- c(-9, -8, 90, 95)
+     recode(Education,
+            'Grade school or less (0-8 grades)' = 1 <- c(1,2,3,4),
+            'High school (12 grades or fewer, incl. non-college' = 2 <- c(5,6,7,8,9),
+            'Some college (13 grades or more but no degree' = 3 <- c(10),
+            'College or advanced degree (no cases 1948)' = 4 <- c(11,12,13,14,15,16))
+     #income group
+     missing.values(VoteMatters) <- c(-9,-8,-7,-6)
+     missing.values(EqualRights) <- c(-6:-9)
+     recode(WorkStatus,
+             '1. Working now' = 1 <- c(10,15,16,17,18),
+             '2. Temporarily laid off' = 2 <- c(20),
+             '4. Unemployed' = 3 <- c(40),
+             '5. Retired' = 4 <- c(50,51),
+             '6. Permanently disabled' = 5 <- c(60, 61),
+             '7. Homemaker' = 6 <- c(70,71,75),
+             '8. Student' = 7 <- c(80,81))
+     missing.values(WorkStatus) <- c(-9)
+     recode(UnionMember,
+            '1. Yes, someone (1948: head) in household belongs to a' = 1 <- c(1),
+            '2. No, no one in household belongs to a labor union' = 2 <- c(2))
+     missing.values(UnionMember) <- c(-9,-8)
+     #no 2016 religion?
+     recode(ChurchAttendance70,
+            '1. Every week (Except 1970: almost every week)' = 1 <- c(1),
+            '2. Almost every week (no cases in 1970)' = 2 <- c(2),
+            '3. Once or twice a month' = 3 <- c(3),
+            '4. A few times a year' = 4 <- c(4),
+            '5. Never (1990 and later: No in filter)' = 5 <- c(5))
+     missing.values(ChurchAttendance70) <- c(-9,-8,-1)
+     recode(Education6,
+            '1. 8 grades or less (grade school)' = 1 <- c(1,2,3,4),
+            '2. 9-12 grades (high school), no diploma/equivalency' = 2 <- c(5,6,7,8),
+            '3. 12 grades, diploma or equivalency' = 3 <- c(9, 90), 
+            '5. Some college, no degree; junior/community college' = 5 <- c(10,11,12),
+            '6. BA level degrees; advanced degrees incl. LLB' = 6 <- c(13,14,15,16))
+     missing.values(Education6) <- c(-9,-8, 95)
+     recode(NativeParents,
+            '1. Yes' = 1 <- c(1),
+            '5. No' = 5 <- c(2,3))
+     missing.values(NativeParents) <- c(-9,-8)
+     recode(FamilyHomeOwner,
+            '1. Yes, own' = 1 <- c(2,3),
+            '2. No, not owned' = 2 <- c(1,4))
+     missing.values(FamilyHomeOwner) <- c(-9,-8)
+     recode(MaritalStatus,
+            '1. Married' = 1 <- c(1,2),
+            '2. Never married' = 2 <- c(6),          
+            '3. Divorced' = 3 <- c(4),                                                                 
+            '4. Separated' = 4 <- c(5),                                                                 
+            '5. Widowed' = 5 <- c(3))
+     missing.values(MaritalStatus) <- c(-8,-9)
+     #social class not coded yet
+     recode(JobWorry,
+            '1. A lot' = 1 <- c(4,5),
+            '3. Somewhat' = 3 <- c(2,3),
+            '5. Not much at all' = 5 <- c(1))
+     missing.values(JobWorry) <- c(-8,-9, -1)
+     missing.values(DemTherm) <- c(-99, -89, -88)
+     missing.values(RepTherm) <- c(-99, -89, -88)
+     missing.values(LiberalsTherm) <- c(-99, -89, -88)
+     missing.values(ConservativesTherm) <- c(-99, -89, -88)
+     recode(PoliticalInterest,
+           '1. Not much interested' = 1 <- c(3,4),
+           '2. Somewhat interested' = 2 <- c(2),
+           '3. Very much interested' = 1 <- c(1))
+     missing.values(PoliticalInterest) <- c(-6,-7,-8,-9)
+     recode(CarePartyPres,
+           '1. Dont care very much or DK, pro-con, depends, and' = 1 <- c(5,4,3),
+           '2. Care a good deal' = 2 <- c(1,2))
+     missing.values(CarePartyPres) <- c(-8,-9)
+     #check this (public affairs vs campaigns)
+     recode(InterestPublicAffairs,
+          '1. Hardly at all (1960,1962: not much at all)' = 1 <- c(4,5),
+          '3. Some of the time (1960,1962: fairly closely)' = 3 <- c(3),
+          '4. Most of the time (1960,1962: very closely)' = 4 <- c(1,2))
+     missing.values(InterestPublicAffairs) <- c(-8,-9)
+     recode(DemCandAngry,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(DemCandAngry) <- c(-8,-9)
+     recode(DemCandAfraid,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(DemCandAfraid) <- c(-8,-9)
+     recode(DemCandHopeful,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(DemCandHopeful) <- c(-8,-9)
+     recode(DemCandProud,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(DemCandProud) <- c(-8,-9)
+     recode(DemCandKnowledge,
+          '1. Extremely well' = 1 <- c(1),
+          '2. Quite well' = 2 <- c(2,3),
+          '3. Not too well' = 3 <- c(4),
+          '4. Not well at all' = 4 <- c(5))
+     missing.values(DemCandKnowledge) <- c(-8,-9)
+     recode(DemCandLeader,
+          '1. Extremely well' = 1 <- c(1),
+          '2. Quite well' = 2 <- c(2,3),
+          '3. Not too well' = 3 <- c(4),
+          '4. Not well at all' = 4 <- c(5))
+     missing.values(DemCandLeader) <- c(-8,-9)
+     recode(DemCandCares,
+          '1. Extremely well' = 1 <- c(1),
+          '2. Quite well' = 2 <- c(2,3),
+          '3. Not too well' = 3 <- c(4),
+          '4. Not well at all' = 4 <- c(5))
+     missing.values(DemCandCares) <- c(-8,-9)
+     recode(RepCandKnowledge,
+          '1. Extremely well' = 1 <- c(1),
+          '2. Quite well' = 2 <- c(2,3),
+          '3. Not too well' = 3 <- c(4),
+          '4. Not well at all' = 4 <- c(5))
+     missing.values(RepCandKnowledge) <- c(-8,-9)
+     recode(RepCandLeader,
+          '1. Extremely well' = 1 <- c(1),
+          '2. Quite well' = 2 <- c(2,3),
+          '3. Not too well' = 3 <- c(4),
+          '4. Not well at all' = 4 <- c(5))
+     missing.values(RepCandLeader) <- c(-8,-9)
+     recode(RepCandCares,
+          '1. Extremely well' = 1 <- c(1),
+          '2. Quite well' = 2 <- c(2,3),
+          '3. Not too well' = 3 <- c(4),
+          '4. Not well at all' = 4 <- c(5))
+     missing.values(RepCandCares) <- c(-8,-9)
+     recode(RepCandAngry,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(RepCandAngry) <- c(-8,-9)
+     recode(RepCandAfraid,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(RepCandAfraid) <- c(-8,-9)
+     recode(RepCandHopeful,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(RepCandHopeful) <- c(-8,-9)
+     recode(RepCandProud,
+          '1. Yes, have felt' = 1 <- c(5,4,3),
+          '2. No, havent felt (1980 only: DK)' = 2 <- c(1,2))
+     missing.values(RepCandProud) <- c(-8,-9)
+     missing.values(USPresTherm) <- c(-88,-89,-99)
+     missing.values(PresPerfApprove) <- c(-8,-9)
+     missing.values(DiffTweenParties) <- c(-9, -8, -7, -6)
+     missing.values(LibConScale) <- c(-9,-8,99)
+     recode(FedGovInterests,
+          '1. Few big interests' = 1 <- c(1),
+          '2. Benefit of all' = 2 <- c(2))
+     missing.values(FedGovInterests) <- c(-9,-8)
+     recode(FedGovWasteTaxes,
+          '1. A lot' = 1 <- c(1),
+          '2. Some' = 2 <- c(2),
+          '3. Not very much' = 3 <- c(3))
+     missing.values(FedGovWasteTaxes) <- c(-8,-9)
+     recode(GovtCrookedOffic,
+        '1. Quite a few; quite a lot (1958-1972)' = 1 <- c(1,2),       
+        '2. Not many' = 2 <- c(3),                          
+        '3. Hardly any' = 3 <- c(4))
+     missing.values(GovtCrookedOffic) <- c(-6,-7,-8,-9)
+     recode(GovtCareYouThink,
+        '1. Agree' = 1 <- c(1,2),
+        '2. Disagree' = 2 <- c(4,5),
+        '3. Neither agree nor disagree (1988 and later only)' = 3 <- c(3))
+     missing.values(GovtCareYouThink) <- c(-6,-7,-8,-9)
+     recode(HaveSayInGovt,
+        '1. Agree' = 1 <- c(4,5),
+        '2. Disagree' = 2 <- c(1,2),
+        '3. Neither agree nor disagree (1988 and later only)' = 3 <- c(3))
+     missing.values(HaveSayInGovt) <- c(-6,-7,-8,-9)
+     recode(PolGovComplicated,
+        '1. Agree' = 1 <- c(1,2),
+        '2. Disagree' = 2 <- c(4,5),
+        '3. Neither agree nor disagree (1988 and later only)' = 3 <- c(3))
+     missing.values(PolGovComplicated) <- c(-6,-7,-8,-9)
+     recode(VoteMatters,
+        '1. Agree (2000: agree strongly/somewhat)' = 1 <- c(5),
+        '2. Disagree (2000: disagree strongly/somewhat)' = 2 <- c(1))
+     recode(TrustPeople,
+        '1. Cant be too careful' = 1 <- c(3,4,5),
+        '2. Most people can be trusted' = 2 <- c(1,2))
+     missing.values(TrustPeople) <- c(-8,-9)
+     recode(PrePresIntent,
+        '1. Democratic candidate (with or without qualifications,' = 1 <- c(1),
+        '2. Republican candidate (with or without qualifications,' = 2 <- c(2),
+        '3. Undecided; DK (except 1964)' = 3 <- c(-8,6))
+     missing.values(PrePresIntent) <- c(-9, -1, 5,7,8)
+     recode(PresElectionClose,
+        '1. Will win by quite a bit' = 1 <- c(2),
+        '2. Close race' = 2 <- c(1))
+     missing.values(PresElectionClose) <- c(-9,-8, -1)
+     #NEED PRESINTENDACTUAL/requires logic !!
+     recode(Registered,
+        '1. No' = 1 <- c(3),
+        '2. Yes (includes Rs who reported voting)' = 2 <- c(1,2))
+     missing.values(Registered) <- c(-9,-8)
+     missing.values(Registered) <- c(-9,-8,-99)
+     missing.values(BetterOffUSIsolated) <- c(-9,-8)
+     missing.values(AidToBlacksScale) <- c(-9,-8,99)
+     missing.values(WhenAbortionAllow) <- c(-9,-8,5)
+     missing.values(ReligionImportant) <- c(-9,-8)
+     missing.values(ReligiousGuidance) <- c(-9,-8,-1)
+     missing.values(LifestyleSocietyBreak) <- c(-9,-8,-7,-6)
+     missing.values(EmphasisTradMoreValues) <- c(-9,-8,-7,-6)
+     recode(EconomyBetterWorse,
+            '5. Worse' = 5 <- c(3))
+     missing.values(EconomyBetterWorse) <- c(-8,-9)
+     recode(LawGays,
+             '5. Oppose' = 5 <- c(2))
+     missing.values(LawGays) <- c(-8,-9)
+     recode(BetterOrWorseOff,
+            '1. Better Now' = 1 <- c(1,2),
+            '2. Same (2004: Volunteered)' = 2 <- c(3),
+            '3. Worse Now' = 3 <- c(4,5))
+     missing.values(BetterOrWorseOff) <- c(-8,-9)
+     recode(FedSpendSchool,
+            '1.   Increased' = 1 <- c(1),
+            '2.   Same' = 2 <- c(3),
+            '3.   Decreased (before 2012: or cut out entirely)' = 3 <- c(2))
+     missing.values(FedSpendSchool) <- c(-8,-9)
+     recode(PresPrefStrength,
+            '1. Strong' = 1 <- c(11,21,31,41,51),
+            '5. Not strong' = 5 <- c(10,20,30,40,50))
+     missing.values(PresPrefStrength) <- c(-1)
+     missing.values(NumMediaTypes) <- c(-9,-8,-1)
+     description(PresIntendActual) <- "Handcoded Combination of PreIntend and PostActual vote"
+     PresIntendActual <- cases(
+       PrePresIntent == 1  & PresPrefStrength %in% 10:11 -> 1,
+       PrePresIntent %in% c(-8,6) & PresPrefStrength %in% 10:11 -> 2,
+       PrePresIntent == 2 & PresPrefStrength %in% 10:11 -> 3,
+       PrePresIntent == 1 & PresPrefStrength %in% c(30,31,41,42,51,52) -> 4,
+       PrePresIntent %in% c(-8,6) & PresPrefStrength %in% c(30,31,41,42,51,52) -> 5,
+       PrePresIntent == 2 & PresPrefStrength %in% c(30,31,41,42,51,52) ->6,
+       PrePresIntent == 1 & PresPrefStrength %in% 20:21 -> 7,
+       PrePresIntent %in% c(-8,6) & PresPrefStrength %in% 20:21 -> 8,
+       PrePresIntent == 2 & PresPrefStrength %in% 20:21 -> 9)
+     labels(PresIntendActual) <- c(
+                  "1. INTENDED Democratic: voted Democratic"  = 1,
+                  "2. INTENDED undecided: voted Democratic" = 2,
+                  "3. INTENDED Republican: voted Democratic" = 3,
+                  "4. INTENDED Democratic: did not vote/voted 'other'" = 4,
+                  "5. INTENDED undecided: did not vote/voted 'other'" = 5,
+                  "6. INTENDED Republican: did not vote/voted 'other'" = 6,
+                  "7. INTENDED Democratic: voted Republican" = 7,
+                  "8. INTENDED undecided: voted Republican" = 8,
+                  "9. INTENDED Republican: voted Republican" = 9,
+                  "NA" = 0)
+     missing.values(PresIntendActual) <- c(0)
+     White <- cases(Race4 == 1 -> 1,
+                    Race4 %in% c(2,3,4,5) -> 0,
+                    Race4 == -9 -> NA)
+     labels(White) <- c(
+                    White = 1,
+                    NonWhite = 0)
+     Black <- cases(Race4 == 2 -> 1,
+                    Race4 %in% c(1,3,4,5) -> 0,
+                    Race4 == -9 -> NA)
+     labels(Black) <- c(
+                    Black = 1,
+                    NonBlack = 0)
+     Hispanic <- cases(Race4 == 4 -> 1,
+                    Race4 %in% c(1,2,3,5) -> 0,
+                    Race4 == -9 -> NA)
+     labels(Hispanic) <- c(
+                    Hispanic = 1,
+                    NonHispanic = 0)
+     })
+
+#vertically combine the historic and 2016 data sets
+SFHistMerge <- SFHistSplit[colnames(dfHist16Re)]
+dfComb <- rbind(SFHistMerge,dfHist16Re)
+
+#Create Switcher types, recode missing values to 2016 vars not yet published 
+dfCombSwitch <- within(dfComb,{ #figure out nulls!
+  Switcher <- cases(
+      PresIntendActual %in% c(2,3,4,6,7,8) -> 1, 
+      PresIntendActual %in% c(1,5,9) -> 0,
+      PresIntendActual %in% c(0) -> NA)
+  labels(Switcher) <- c(
+    Switcher = 1,
+    NonSwitcher = 0)
+  PartyBreaker <- cases(
+      PresIntendActual %in% c(2,3) -> 1, #Dem breaker
+      PresIntendActual %in% c(7,8) -> 3, #Rep breaker
+      PresIntendActual %in% c(4,6) -> 2, 
+      PresIntendActual %in% c(1,5,9) -> 0,
+      PresIntendActual %in% c(0) -> NA)
+  labels(PartyBreaker) <- c(
+    Switcher = 1,
+    NonSwitcher = 0)
+  DemBreaker <- cases(
+      PresIntendActual %in% c(2,3) -> 1, 
+      PresIntendActual %in% c(1,4:9) -> 0,
+      PresIntendActual %in% c(0) -> NA)
+  labels(DemBreaker) <- c(
+    DemBreaker = 1,
+    NonDemBreaker = 0)
+  RepBreaker = cases(
+      PresIntendActual %in% c(7,8) -> 1, 
+      PresIntendActual %in% c(1:6,9) -> 0,
+      PresIntendActual %in% c(0) -> NA)
+  labels(RepBreaker) <- c(
+    RepBreaker = 1,
+    NonRepBreaker = 0)
+  UndBreaker = cases(
+      PresIntendActual %in% c(4,6) -> 1, 
+      PresIntendActual %in% c(1:3,5,7:9) -> 0,
+      PresIntendActual %in% c(0) -> NA) #Break to Inf (1) or not (0)
+  labels(UndBreaker) <- c(
+    UndBreaker = 1,
+    NonUndBreaker = 0)
+  Dem2RepSwitcher = cases(
+      PresIntendActual == 7 -> 1,
+      PresIntendActual %in% c(1:6, 8:9) -> 0,
+      PresIntendActual %in% c(0) -> NA) #Switch from Dem to Rep (1) or not (0)
+  labels(Dem2RepSwitcher) <- c(
+    Dem2RepSwitcher = 1,
+    NonDem2RepSwitcher = 0)
+  Rep2DemSwitcher = cases(
+      PresIntendActual == 3 -> 1, 
+      PresIntendActual %in% c(1:2, 4:9) -> 0,
+      PresIntendActual %in% c(0) -> NA) #Switch from Rep to Dem (1) or not (0)
+  labels(Rep2DemSwitcher) <- c(
+    Rep2DemSwitcher = 1,
+    NonRep2DemSwitcher = 0)
+  TicketSplitPresSen = cases(
+      NationalTicketSplit %in% c(2,3) -> 1, 
+      NationalTicketSplit %in% c(1,4) -> 0,
+      NationalTicketSplit == 0 -> NA)
+  labels(TicketSplitPresSen) <- c(
+    TicketSplitterPresSen = 1,
+    NonTicketSplitterPresSen = 0)
+  TicketSplitLocal = cases(
+      LocalTicketSplit %in% c(2,3,4) -> 1, 
+      LocalTicketSplit %in% c(1,5) -> 0,
+      LocalTicketSplit == 0 -> NA)
+  labels(TicketSplitLocal) <- c(
+    TicketSplitterLocal = 1,
+    NonTicketSplitterLocal = 0)
+  missing.values(LocalTicketSplit) <- 0
+  missing.values(NationalTicketSplit) <- 0
+  labels(Age) <- c(
+      Legal = c(18:100),
+      Illegal = c(0:17))
+  AgeGroup = cases(
+    Age %in% c(18:29) -> 1,
+    Age %in% c(30:39) -> 2,
+    Age %in% c(40:49) -> 3,
+    Age %in% c(50:59) -> 4,
+    Age %in% c(60:69) -> 5,
+    Age %in% c(70:100) -> 6
+  )
+  missing.values(AgeGroup) <- 0
+  labels(AgeGroup) <- c(
+    "18-29" = 1,
+    "30-39" = 2,
+    "40-49" = 3,
+    "50-59" = 4,
+    "60-69" = 5,
+    "70+" = 6
+  )
+})
+```
+Split by President/Midterm years, categorize variable types
+```{r}
+#Split Presidential years from congressional/governor
+PresYears <- c(2016, 2012, 2008, 2004, 2000,	1996,	1992,	1988,	1984,	1980,	1976,	1972,	1968,	1964,	1960,	1956,	1952) #Dropped 1948 due to lack of pairwise data
+MidTermYears <- c(2006,	2002,	1998,	1994,	1990,	1986,	1982,	1978,	1974,	1970,	1966,	1962,	1958,	1954,	1950)
+
+dsHistPres <- dfCombSwitch[dfCombSwitch$Year %in% PresYears,]
+dsHistMidTerm <- dfCombSwitch[dfCombSwitch$Year %in% MidTermYears,]
+
+intervalVars <- c("UniqueCase", "Age", "DemTherm", "RepTherm", "LiberalsTherm", "ConservativesTherm", "USPresTherm", "LengthCommunity", "Year")
+```
+
+Prepare data for imputation in Python
+```{r}
+#Conversion to numeric/matrix for analysis
+fHistPres <- sapply(dsHistPres, as.factor)
+dfHistPres <- as.data.frame(fHistPres)
+nHistPres <- sapply(dfHistPres, as.numeric)
+
+#Send csv to python for imputation
+write.csv(nHistPres, "forImpute4.csv")
+nrow(dfCombSwitch)
+```
+
+Upload and transform imputed data
+```{r}
+
+#Read python imputed data
+miceimputed1 <- read.csv("MiceThesisData1.csv")
+miceimputed1 <- miceimputed1[2:ncol(miceimputed1)]
+colnames(miceimputed1) <- colnames(nHistPres)
+
+#Add age group
+miceimputed1$CorrAge <- miceimputed1$Age+17
+miceimputed1$AgeGroup[between(round(miceimputed1$CorrAge), 18, 29) ] <- 1
+miceimputed1$AgeGroup[between(round(miceimputed1$CorrAge), 30, 39) ] <- 2
+miceimputed1$AgeGroup[between(round(miceimputed1$CorrAge), 40, 49) ] <- 3
+miceimputed1$AgeGroup[between(miceimputed1$CorrAge, 50, 59) ] <- 4
+miceimputed1$AgeGroup[between(miceimputed1$CorrAge, 60, 69) ] <- 5
+miceimputed1$AgeGroup[between(miceimputed1$CorrAge, 70, 100) ] <- 6
+miceimputed1$AgeGroup[is.na(miceimputed1$AgeGroup)] <- 2
+```
+
+Barcharts comparing original with imputed data
+```{r}
+#Non-interval imputed data for comparison
+noninterval <- miceimputed1[,(!(colnames(miceimputed1) %in% intervalVars))]
+
+#Non-interval original numeric data for comparison
+noninterval1 <- nHistPres[,(!(colnames(nHistPres) %in% intervalVars))]
+
+#Histograms of data both before and after imputation
+par(mfrow = c(3,5), cex = .5)
+for(i in colnames(noninterval)){
+ hist(noninterval[,i], xlab = names(noninterval[i]),
+   main = names(noninterval[i]), col="grey", ylab="")
+   hist(noninterval1[,i], xlab = names(noninterval1[i]),
+   main = names(noninterval1[i]), col="gold", ylab="")
+}
+```
+
+```{r warning=F}
+PCA <- function(X) {
+  Xpca <- prcomp(na.omit(X), center = T, scale. = T) 
+  M <- as.matrix(na.omit(X)); R <- as.matrix(Xpca$rotation); score <- M %*% R
+  print(list("Importance of Components" = summary(Xpca)$importance[ ,1:4], 
+             "Correlation between X and PC" = cor(na.omit(X), score)[ ,1:4]))
+  par(mfrow=c(2,3))
+  barplot(Xpca$sdev^2, ylab = "Component Variance")
+  barplot(cor(cbind(X)), ylab = "Correlations")
+  barplot(Xpca$rotation, ylab = "Loadings")  
+  biplot(Xpca); barplot(M); barplot(score)
+}
+PCA(miceimputed1[, -ncol(miceimputed1)])
+```
+Variable Correlations
+```{r}
+library(corrplot)
+correlations <- cor(miceimputed1)
+corrplot(correlations, order = "hclust", tl.cex = 0.55)
+```
+X and Y correlations
+```{r}
+display <- function(data) {
+  datatable(data, options = list(
+    searching = TRUE,
+    pageLength = 5,
+    lengthMenu = c(5, nrow(data))
+    ), rownames = FALSE)
+}
+library(data.table)
+library(Hmisc)
+library(reshape2)
+install.packages("ggplot")
+library(ggplot)
+Corr_XY <- function(X, Y) {
+  corr <- data.frame(array(NA, dim = c(ncol(X), 5)))
+  colnames(corr) <- c("Y", "X", "r","p","<0.05")
+  for (i in 1:ncol(X)) {
+    r <- cor.test(as.numeric(Y), X[, i])
+    corr[i, 1] <- "target"
+    corr[i, 2] <- names(X[i])
+    corr[i, 3] <- round(r$estimate, 6)
+    corr[i, 4] <- round(r$p.value, 6)
+    corr[i, 5] <- corr[i, 4] < 0.05
+  }
+  return(corr)
+}
+
+#Response/Independent var correlation displays for each response
+xVars <- colnames(nHistPres[,c(2:81)])
+colnames(nHistPres)
+Switcher.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"Switcher"])
+display(Switcher.Corr)
+
+PartyBreaker.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"PartyBreaker"])
+display(PartyBreaker.Corr)
+
+DemBreaker.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"DemBreaker"])
+display(DemBreaker.Corr)
+
+RepBreaker.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"RepBreaker"])
+display(RepBreaker.Corr)
+
+UndBreaker.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"UndBreaker"])
+display(UndBreaker.Corr)
+
+DecisionTime.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"DecisionTime"])
+display(DecisionTime.Corr)
+
+TicketSplitPresSen.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"TicketSplitPresSen"])
+display(TicketSplitPresSen.Corr)
+
+TicketSplitLocal.Corr <- Corr_XY(miceimputed1[,xVars], miceimputed1[,"TicketSplitLocal"])
+display(TicketSplitLocal.Corr)
+
+#Create vectors of dileanating dependent and independent columns to use in correlation and regression formulas
+dependent <- c(2:3,5, 7:11, 13, 15:19, 24:42, 44:54, 56, 57, 60, 61:73, 75:81,91)
+SwitcherNum <- c(82)
+PartyBreakerNum <- c(83)
+DemBreakerNum <- c(84)
+RepBreakerNum <- c(85)
+UndBreakerNum <- c(86)
+
+#Removing Highly Correlated Variables (keeping this as a choice, but decideded against using it)
+#correlations <- cor(miceimputed1[dependent])
+#hc = findCorrelation(correlations, cutoff=0.55)
+```
+
+##Build Models
+Democratic Breakers Regression and Summary
+```{r echo=FALSE, include=F}
+#Set up Dem Breaker regression
+DemBrker <- miceimputed1[,c(dependent,DemBreakerNum)]
+DemBrker$DemBreaker <- round(DemBrker$DemBreaker)
+
+#Create binary response factor
+DemBrker <- within (DemBrker, {
+  DemBreaker <- factor(DemBreaker, levels = 1:2, labels = c("DemBreaker", "NonDemBreaker"))
+})
+
+#
+glm.full.dem <- glm(DemBreaker ~ ., data = DemBrker, family = binomial)
+glm.null.dem <- glm(DemBreaker ~ 1, data = DemBrker, family = binomial)
+
+#model.aic.forward.dem <- step(glm.null.dem, direction = "forward", trace = 0, scope = list(lower=glm.null.dem, upper=glm.full.dem))
+
+
+#Automated Forward AIC Selection (Backward gave similar results)
+#summary(model.aic.forward.dem)
+```
+Call:
+glm(formula = DemBreaker ~ DecisionTime + NationalTicketSplit + 
+    LocalTicketSplit + PartisanLean + DemCandProud + CarePartyPres + 
+    PartyIdent7 + EconomyBetterWorse + RepCandHopeful + NativeParents + 
+    ChurchAttendance70 + PresElectionClose + VoteMatters + Gender + 
+    InterestPublicAffairs + DemCandCares + White + NumParticActs6 + 
+    EqualRights + RepCandAfraid + FamilyHomeOwner + ReligiousGuidance + 
+    FedSpendSchool + DemCandLeader + UnionMember, family = binomial, 
+    data = DemBrker)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-3.6710   0.1044   0.1621   0.2294   2.0952  
+
+Coefficients:
+                      Estimate Std. Error z value Pr(>|z|)    
+(Intercept)            3.00550    0.71349   4.212 2.53e-05 ***
+DecisionTime          -0.78252    0.02713 -28.845  < 2e-16 ***
+NationalTicketSplit    1.13770    0.04777  23.815  < 2e-16 ***
+LocalTicketSplit       0.52518    0.04389  11.966  < 2e-16 ***
+PartisanLean           0.25833    0.03499   7.384 1.54e-13 ***
+DemCandProud          -0.39386    0.09227  -4.268 1.97e-05 ***
+CarePartyPres          0.52563    0.06814   7.714 1.22e-14 ***
+PartyIdent7           -0.08991    0.02204  -4.080 4.51e-05 ***
+EconomyBetterWorse    -0.19099    0.05505  -3.469 0.000522 ***
+RepCandHopeful         0.29422    0.08741   3.366 0.000763 ***
+NativeParents         -0.22637    0.07851  -2.884 0.003933 ** 
+ChurchAttendance70     0.06918    0.02595   2.666 0.007666 ** 
+PresElectionClose      0.21291    0.07022   3.032 0.002430 ** 
+VoteMatters           -0.53072    0.20952  -2.533 0.011309 *  
+Gender                -0.17226    0.06468  -2.663 0.007737 ** 
+InterestPublicAffairs -0.10769    0.03903  -2.759 0.005795 ** 
+DemCandCares          -0.13491    0.06988  -1.930 0.053558 .  
+White                  0.18335    0.07835   2.340 0.019272 *  
+NumParticActs6         0.29619    0.19685   1.505 0.132414    
+EqualRights           -0.06475    0.03379  -1.916 0.055320 .  
+RepCandAfraid         -0.16908    0.09365  -1.805 0.071012 .  
+FamilyHomeOwner        0.13037    0.07318   1.782 0.074813 .  
+ReligiousGuidance      0.09896    0.06122   1.617 0.105973    
+FedSpendSchool         0.11857    0.07647   1.550 0.121034    
+DemCandLeader         -0.10195    0.06836  -1.491 0.135902    
+UnionMember           -0.11285    0.07715  -1.463 0.143553    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 10936.3  on 38557  degrees of freedom
+Residual deviance:  8469.6  on 38532  degrees of freedom
+AIC: 8521.6
+
+Number of Fisher Scoring iterations: 7
+
+
+
+Republican Breakers Regression and Summary
+```{r echo=FALSE, include=F}
+#Set up Rep Breaker regression
+RepBrker <- miceimputed1[,c(dependent,RepBreakerNum)]
+RepBrker$RepBreaker <- round(RepBrker$RepBreaker)
+
+#Create binary response factor
+RepBrker <- within (RepBrker, {
+  RepBreaker <- factor(RepBreaker, levels = 1:2, labels = c("RepBreaker", "NonRepBreaker"))
+})
+
+#
+glm.full.Rep <- glm(RepBreaker ~ ., data = RepBrker, family = binomial)
+glm.null.Rep <- glm(RepBreaker ~ 1, data = RepBrker, family = binomial)
+
+#model.aic.forward.Rep <- step(glm.null.Rep, direction = "forward", trace = 0, scope = list(lower=glm.null.Rep, upper=glm.full.Rep))
+
+
+#Automated Forward AIC Selection (Backward gave similar results)
+#summary(model.aic.forward.Rep)
+```
+Call:
+glm(formula = RepBreaker ~ DecisionTime + NationalTicketSplit + 
+    PartyIdent7 + CarePartyPres + PartisanLean + DemCandAfraid + 
+    Black + LocalTicketSplit + ChurchAttendance70 + DemCandHopeful + 
+    LengthCommunity + VoteMatters + DemCandLeader + RepCandHopeful + 
+    EqualRights + RepCandCares + ReligiousGuidance + FamilyHomeOwner + 
+    IncomeGroup + FedSpendSchool + PresPerfApprove + DemCandAngry + 
+    TrustPeople + NumParticActs6 + FedGovInterests + PresElectionClose + 
+    InterestPublicAffairs + EconomyBetterWorse + ReligionImportant + 
+    NativeParents + DemCandKnowledge + LibConScale, family = binomial, 
+    data = RepBrker)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.8860  -0.2254  -0.1600  -0.0986   3.9049  
+
+Coefficients:
+                       Estimate Std. Error z value Pr(>|z|)    
+(Intercept)           -11.58755    0.78976 -14.672  < 2e-16 ***
+DecisionTime            0.85430    0.02735  31.232  < 2e-16 ***
+NationalTicketSplit     1.33443    0.04852  27.504  < 2e-16 ***
+PartyIdent7            -0.20425    0.02092  -9.766  < 2e-16 ***
+CarePartyPres          -0.41591    0.06767  -6.147 7.91e-10 ***
+PartisanLean           -0.22383    0.03396  -6.590 4.39e-11 ***
+DemCandAfraid           0.23165    0.10408   2.226 0.026029 *  
+Black                   0.65213    0.15478   4.213 2.52e-05 ***
+LocalTicketSplit        0.11650    0.03964   2.939 0.003295 ** 
+ChurchAttendance70     -0.06785    0.02853  -2.378 0.017416 *  
+DemCandHopeful         -0.32435    0.09242  -3.510 0.000449 ***
+LengthCommunity         0.07616    0.03541   2.151 0.031457 *  
+VoteMatters             0.51866    0.19149   2.708 0.006759 ** 
+DemCandLeader           0.23014    0.06579   3.498 0.000469 ***
+RepCandHopeful          0.20042    0.09654   2.076 0.037902 *  
+EqualRights            -0.07738    0.03640  -2.126 0.033496 *  
+RepCandCares            0.12881    0.06638   1.941 0.052308 .  
+ReligiousGuidance      -0.12366    0.06244  -1.981 0.047640 *  
+FamilyHomeOwner        -0.20252    0.07878  -2.571 0.010147 *  
+IncomeGroup            -0.06999    0.03197  -2.189 0.028562 *  
+FedSpendSchool         -0.15717    0.07231  -2.174 0.029741 *  
+PresPerfApprove         0.23930    0.08570   2.792 0.005236 ** 
+DemCandAngry            0.16005    0.09856   1.624 0.104401    
+TrustPeople            -0.17786    0.09348  -1.903 0.057088 .  
+NumParticActs6          0.38310    0.17981   2.131 0.033120 *  
+FedGovInterests         0.12012    0.08013   1.499 0.133835    
+PresElectionClose       0.12980    0.07221   1.798 0.072248 .  
+InterestPublicAffairs   0.05944    0.03861   1.539 0.123692    
+EconomyBetterWorse     -0.10517    0.05689  -1.849 0.064515 .  
+ReligionImportant      -0.16049    0.11477  -1.398 0.162008    
+NativeParents           0.12869    0.08315   1.548 0.121681    
+DemCandKnowledge       -0.10746    0.06926  -1.552 0.120742    
+LibConScale             0.05421    0.03624   1.496 0.134686    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 10977.2  on 38557  degrees of freedom
+Residual deviance:  8386.3  on 38525  degrees of freedom
+AIC: 8452.3
+
+Number of Fisher Scoring iterations: 7
+
+
+
+Undecided Breakers Regression and Summary
+```{r echo=FALSE, include=F}
+#Set up Und Breaker regression
+UndBrker <- miceimputed1[,c(dependent,UndBreakerNum)]
+UndBrker$UndBreaker <- round(UndBrker$UndBreaker)
+
+#Create binary response factor
+UndBrker <- within (UndBrker, {
+  UndBreaker <- factor(UndBreaker, levels = 1:2, labels = c("UndBreaker", "NonUndBreaker"))
+})
+
+#
+glm.full.Und <- glm(UndBreaker ~ ., data = UndBrker, family = binomial)
+glm.null.Und <- glm(UndBreaker ~ 1, data = UndBrker, family = binomial)
+
+#model.aic.forward.Und <- step(glm.null.Und, direction = "forward", trace = 0, scope = list(lower=glm.null.Und, upper=glm.full.Und))
+
+
+#Automated Forward AIC Selection (Backward gave similar results)
+#summary(model.aic.forward.Und)
+```
+summary(model.aic.forward.Und)
+
+Call:
+glm(formula = UndBreaker ~ NumParticActs6 + IncomeGroup + ChurchAttendance70 + 
+    ObsInfoLvlPost + White + DecisionTime + TrustPeople + PolGovComplicated + 
+    CarePartyPres + InterestPublicAffairs + FamilyHomeOwner + 
+    Year + Education + NationalTicketSplit + DemCandLeader + 
+    Gender + AgeGroup + Hispanic + GovtCareYouThink + UnionMember + 
+    PresElectionClose + VoteMatters + EconomyBetterWorse + BetterOrWorseOff + 
+    DemCandHopeful + SocialClass + FedGovWasteTaxes + GovtCrookedOffic + 
+    Black + MaritalStatus + AidToBlacksScale + LifestyleSocietyBreak + 
+    LengthCommunity + LawGays + PoliticalInterest + RepCandKnowledge + 
+    DemCandKnowledge + NativeParents + FedGovInterests + Occupation + 
+    WorkStatus + PresPerfApprove + ObsInfoLvlPre, family = binomial, 
+    data = UndBrker)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.1021  -0.4320  -0.3421  -0.2552   3.5315  
+
+Coefficients:
+                       Estimate Std. Error z value Pr(>|z|)    
+(Intercept)            0.737211   0.568483   1.297 0.194698    
+NumParticActs6        -2.316750   0.207550 -11.162  < 2e-16 ***
+IncomeGroup           -0.092953   0.022945  -4.051 5.10e-05 ***
+ChurchAttendance70     0.125663   0.016103   7.804 6.01e-15 ***
+ObsInfoLvlPost         0.177187   0.033830   5.238 1.63e-07 ***
+White                 -0.295755   0.070230  -4.211 2.54e-05 ***
+DecisionTime           0.185873   0.020104   9.246  < 2e-16 ***
+TrustPeople           -0.322326   0.063595  -5.068 4.01e-07 ***
+PolGovComplicated     -0.246100   0.059585  -4.130 3.62e-05 ***
+CarePartyPres          0.298210   0.047455   6.284 3.30e-10 ***
+InterestPublicAffairs -0.106334   0.027727  -3.835 0.000126 ***
+FamilyHomeOwner        0.210128   0.045956   4.572 4.82e-06 ***
+Year                   0.047357   0.007586   6.243 4.31e-10 ***
+Education             -0.168268   0.029960  -5.616 1.95e-08 ***
+NationalTicketSplit    0.115241   0.027227   4.233 2.31e-05 ***
+DemCandLeader         -0.187912   0.042333  -4.439 9.04e-06 ***
+Gender                -0.187730   0.043326  -4.333 1.47e-05 ***
+AgeGroup              -0.040822   0.012267  -3.328 0.000875 ***
+Hispanic              -0.278703   0.123259  -2.261 0.023752 *  
+GovtCareYouThink      -0.176892   0.052019  -3.401 0.000673 ***
+UnionMember            0.159660   0.055290   2.888 0.003881 ** 
+PresElectionClose     -0.148187   0.044098  -3.360 0.000778 ***
+VoteMatters            0.304336   0.111410   2.732 0.006301 ** 
+EconomyBetterWorse     0.130693   0.036552   3.575 0.000350 ***
+BetterOrWorseOff      -0.076473   0.028506  -2.683 0.007302 ** 
+DemCandHopeful        -0.169373   0.057119  -2.965 0.003024 ** 
+SocialClass           -0.033772   0.015021  -2.248 0.024561 *  
+FedGovWasteTaxes       0.115358   0.044272   2.606 0.009169 ** 
+GovtCrookedOffic      -0.109482   0.041469  -2.640 0.008288 ** 
+Black                  0.238877   0.083587   2.858 0.004265 ** 
+MaritalStatus          0.038456   0.014554   2.642 0.008235 ** 
+AidToBlacksScale      -0.251848   0.095085  -2.649 0.008081 ** 
+LifestyleSocietyBreak -0.051624   0.025274  -2.043 0.041092 *  
+LengthCommunity       -0.049855   0.022084  -2.258 0.023971 *  
+LawGays                0.137041   0.069576   1.970 0.048877 *  
+PoliticalInterest     -0.062217   0.032538  -1.912 0.055860 .  
+RepCandKnowledge      -0.068069   0.039629  -1.718 0.085862 .  
+DemCandKnowledge       0.084757   0.045783   1.851 0.064130 .  
+NativeParents         -0.098301   0.057968  -1.696 0.089929 .  
+FedGovInterests        0.087494   0.055141   1.587 0.112572    
+Occupation             0.039299   0.016972   2.316 0.020584 *  
+WorkStatus            -0.029297   0.013358  -2.193 0.028289 *  
+PresPerfApprove       -0.079589   0.053536  -1.487 0.137105    
+ObsInfoLvlPre         -0.041516   0.028055  -1.480 0.138918    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 20169  on 38557  degrees of freedom
+Residual deviance: 18877  on 38514  degrees of freedom
+AIC: 18965
+
+Number of Fisher Scoring iterations: 6
+
+
+Switchers Regression and Summary
+```{r echo=FALSE, include=F}
+#Set up Und Breaker regression
+Swtchr <- miceimputed1[,c(dependent,SwitcherNum)]
+Swtchr$Switcher <- round(Swtchr$Switcher)
+
+#Create binary response factor
+Swtchr <- within (Swtchr, {
+  Switcher <- factor(Switcher, levels = 1:2, labels = c("Switcher", "NonSwitcher"))
+})
+table(Swtchr$Switcher)
+#
+glm.full.Swi <- glm(Switcher ~ ., data = Swtchr, family = binomial)
+glm.null.Swi <- glm(Switcher ~ 1, data = Swtchr, family = binomial)
+
+model.aic.forward.Swi <- step(glm.null.Swi, direction = "forward", trace = 0, scope = list(lower=glm.null.Swi, upper=glm.full.Swi))
+
+
+#Automated Forward AIC Selection (Backward gave similar results)
+#summary(model.aic.forward.Swi)
+```
+Call:
+glm(formula = Switcher ~ DecisionTime + NumParticActs6 + Education + 
+    TrustPeople + PartisanLean + ObsInfoLvlPost + VoteMatters + 
+    IncomeGroup + Hispanic + PolGovComplicated + LocalTicketSplit + 
+    NationalTicketSplit + DemCandAfraid + White + ChurchAttendance70 + 
+    EconomyBetterWorse + FedSpendSchool + PresElectionClose + 
+    Black + DemCandHopeful + FedGovInterests + UnionMember + 
+    AgeGroup + GovtCareYouThink + AidToBlacksScale + SocialClass + 
+    MaritalStatus + ReligionImportant + Gender + BetterOrWorseOff + 
+    DemCandCares + LifestyleSocietyBreak + FedGovWasteTaxes, 
+    family = binomial, data = Swtchr)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.5518  -0.5716  -0.4442  -0.3015   2.9519  
+
+Coefficients:
+                      Estimate Std. Error z value Pr(>|z|)    
+(Intercept)           -1.78058    0.41930  -4.247 2.17e-05 ***
+DecisionTime           0.62606    0.01531  40.901  < 2e-16 ***
+NumParticActs6        -1.07179    0.11467  -9.347  < 2e-16 ***
+Education             -0.10196    0.02108  -4.837 1.32e-06 ***
+TrustPeople           -0.27690    0.04833  -5.730 1.01e-08 ***
+PartisanLean          -0.10460    0.01603  -6.525 6.82e-11 ***
+ObsInfoLvlPost         0.08606    0.02421   3.554 0.000379 ***
+VoteMatters            0.52162    0.08890   5.868 4.42e-09 ***
+IncomeGroup           -0.06209    0.01735  -3.579 0.000344 ***
+Hispanic              -0.26755    0.10418  -2.568 0.010226 *  
+PolGovComplicated     -0.19177    0.04315  -4.444 8.83e-06 ***
+LocalTicketSplit      -0.10589    0.02148  -4.929 8.26e-07 ***
+NationalTicketSplit    0.11382    0.02221   5.124 3.00e-07 ***
+DemCandAfraid          0.14112    0.04968   2.841 0.004504 ** 
+White                 -0.19489    0.05321  -3.663 0.000250 ***
+ChurchAttendance70     0.04965    0.01323   3.753 0.000175 ***
+EconomyBetterWorse     0.10546    0.02700   3.906 9.38e-05 ***
+FedSpendSchool        -0.09331    0.03589  -2.600 0.009323 ** 
+PresElectionClose     -0.10651    0.03440  -3.096 0.001960 ** 
+Black                  0.22783    0.06671   3.415 0.000637 ***
+DemCandHopeful        -0.14574    0.04414  -3.302 0.000961 ***
+FedGovInterests        0.10336    0.04184   2.470 0.013499 *  
+UnionMember            0.10890    0.04098   2.658 0.007872 ** 
+AgeGroup              -0.02543    0.00942  -2.700 0.006936 ** 
+GovtCareYouThink      -0.08961    0.03871  -2.315 0.020608 *  
+AidToBlacksScale      -0.18133    0.07725  -2.347 0.018905 *  
+SocialClass           -0.02503    0.01157  -2.165 0.030424 *  
+MaritalStatus          0.02922    0.01167   2.504 0.012297 *  
+ReligionImportant     -0.10563    0.05150  -2.051 0.040271 *  
+Gender                -0.06401    0.03236  -1.978 0.047903 *  
+BetterOrWorseOff      -0.04172    0.02223  -1.877 0.060505 .  
+DemCandCares           0.05994    0.03180   1.885 0.059433 .  
+LifestyleSocietyBreak -0.03873    0.01985  -1.951 0.051110 .  
+FedGovWasteTaxes       0.05037    0.03474   1.450 0.147094    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 30856  on 38557  degrees of freedom
+Residual deviance: 28016  on 38524  degrees of freedom
+AIC: 28084
+
+Number of Fisher Scoring iterations: 5
+
+
+Decision Time Regression and Summary
+```{r echo=FALSE, include=F}
+#Set up Decision Time regression
+DecTime <- miceimputed1[,c(dependent)]
+DecTime$DecisionTime <- floor(DecTime$DecisionTime)
+#Create binary response factor
+DecTime <- within (DecTime, {
+  DecisionTime <- factor(DecisionTime, levels = 1:6, labels = c("Knew all along", "When candidate announced", "During convention", "Post-convention period", "Last two weeks of campaign", "On election day"))
+})
+
+#
+glm.full.DecT <- glm(DecisionTime ~ ., data = DecTime, family = binomial)
+glm.null.DecT <- glm(DecisionTime ~ 1, data = DecTime, family = binomial)
+
+#model.aic.forward.DecT <- step(glm.null.DecT, direction = "forward", trace = 0, scope = list(lower=glm.null.DecT, upper=glm.full.DecT))
+
+#Automated Forward AIC Selection (Backward gave similar results)
+#summary(model.aic.forward.Swi)
+```
+Call:
+glm(formula = Switcher ~ DecisionTime + NumParticActs6 + Education + 
+    TrustPeople + PartisanLean + ObsInfoLvlPost + VoteMatters + 
+    IncomeGroup + Hispanic + PolGovComplicated + LocalTicketSplit + 
+    NationalTicketSplit + DemCandAfraid + White + ChurchAttendance70 + 
+    EconomyBetterWorse + FedSpendSchool + PresElectionClose + 
+    Black + DemCandHopeful + FedGovInterests + UnionMember + 
+    AgeGroup + GovtCareYouThink + AidToBlacksScale + SocialClass + 
+    MaritalStatus + ReligionImportant + Gender + BetterOrWorseOff + 
+    DemCandCares + LifestyleSocietyBreak + FedGovWasteTaxes, 
+    family = binomial, data = Swtchr)
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-1.5518  -0.5716  -0.4442  -0.3015   2.9519  
+
+Coefficients:
+                      Estimate Std. Error z value Pr(>|z|)    
+(Intercept)           -1.78058    0.41930  -4.247 2.17e-05 ***
+DecisionTime           0.62606    0.01531  40.901  < 2e-16 ***
+NumParticActs6        -1.07179    0.11467  -9.347  < 2e-16 ***
+Education             -0.10196    0.02108  -4.837 1.32e-06 ***
+TrustPeople           -0.27690    0.04833  -5.730 1.01e-08 ***
+PartisanLean          -0.10460    0.01603  -6.525 6.82e-11 ***
+ObsInfoLvlPost         0.08606    0.02421   3.554 0.000379 ***
+VoteMatters            0.52162    0.08890   5.868 4.42e-09 ***
+IncomeGroup           -0.06209    0.01735  -3.579 0.000344 ***
+Hispanic              -0.26755    0.10418  -2.568 0.010226 *  
+PolGovComplicated     -0.19177    0.04315  -4.444 8.83e-06 ***
+LocalTicketSplit      -0.10589    0.02148  -4.929 8.26e-07 ***
+NationalTicketSplit    0.11382    0.02221   5.124 3.00e-07 ***
+DemCandAfraid          0.14112    0.04968   2.841 0.004504 ** 
+White                 -0.19489    0.05321  -3.663 0.000250 ***
+ChurchAttendance70     0.04965    0.01323   3.753 0.000175 ***
+EconomyBetterWorse     0.10546    0.02700   3.906 9.38e-05 ***
+FedSpendSchool        -0.09331    0.03589  -2.600 0.009323 ** 
+PresElectionClose     -0.10651    0.03440  -3.096 0.001960 ** 
+Black                  0.22783    0.06671   3.415 0.000637 ***
+DemCandHopeful        -0.14574    0.04414  -3.302 0.000961 ***
+FedGovInterests        0.10336    0.04184   2.470 0.013499 *  
+UnionMember            0.10890    0.04098   2.658 0.007872 ** 
+AgeGroup              -0.02543    0.00942  -2.700 0.006936 ** 
+GovtCareYouThink      -0.08961    0.03871  -2.315 0.020608 *  
+AidToBlacksScale      -0.18133    0.07725  -2.347 0.018905 *  
+SocialClass           -0.02503    0.01157  -2.165 0.030424 *  
+MaritalStatus          0.02922    0.01167   2.504 0.012297 *  
+ReligionImportant     -0.10563    0.05150  -2.051 0.040271 *  
+Gender                -0.06401    0.03236  -1.978 0.047903 *  
+BetterOrWorseOff      -0.04172    0.02223  -1.877 0.060505 .  
+DemCandCares           0.05994    0.03180   1.885 0.059433 .  
+LifestyleSocietyBreak -0.03873    0.01985  -1.951 0.051110 .  
+FedGovWasteTaxes       0.05037    0.03474   1.450 0.147094    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 30856  on 38557  degrees of freedom
+Residual deviance: 28016  on 38524  degrees of freedom
+AIC: 28084
+
+Number of Fisher Scoring iterations: 5
+
+
+
+https://cran.r-project.org/web/packages/memisc/vignettes/anes48.html
+
