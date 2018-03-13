@@ -1,0 +1,102 @@
+---
+title: "Assignment 6"
+author: "Andrew Goldberg"
+date: "November 22, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+```
+
+```{r Problem Set 1}
+#(1) When you roll a fair die 3 times, how many possible outcomes are there?
+6^3
+
+
+#(2) What is the probability of getting a sum total of 3 when you roll a die two times?
+#1/2 and 2/1, so two ways out of 36 possible outcomes or 1/18
+
+
+#(3) Assume a room of 25 strangers. What is the probability that two of them have the same birthday? Assume that all birthdays are equally likely and equal to 1=365 each. What happens to this probability when there are 50 people in the room?
+
+#I'll assume this means "at least 2", since it wasn't defined as "exactly 2" or "any 2"
+#compute complement (no one sharing a birthday)
+q25 <- 366-(1:25)
+P25 <- 1-prod(q25/365)
+P25
+#at 50
+q50 <- 366-(1:50)
+P50 <- 1-prod(q50/365)
+P50
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r Problem Set 2}
+library(tm)
+
+spath <- file.path("C:\\Users\\andrew\\Desktop\\Computational Math\\Week 6\\assign6 (2) (1)\\assign6" )
+docs <- Corpus(DirSource(spath))
+inspect(docs)
+
+#remove punctuation, convert to lowercase, strip whitespace, finish preprocessing
+docs <- tm_map(docs, removePunctuation)
+docs <- tm_map(docs, tolower)
+docs <- tm_map(docs, stripWhitespace)
+docs <- tm_map(docs, PlainTextDocument)
+
+#create document term matrix and it's transpose
+dtm <- DocumentTermMatrix(docs)
+inspect(dtm)
+tdm <- TermDocumentMatrix(docs)
+inspect(dtm)
+
+#create probabilities for each word
+freq <- colSums(as.matrix(dtm))   
+freqProb <- freq/sum(freq)
+
+#write out the probabilities of each of the words that appear in that document.
+wordlen <- length(freqProb)
+wordProbPrint <- cbind(rep("probability: ", wordlen), freqProb)
+options(max.print=10000)
+#print out the estimated probabilities for each of the words that occur in that document
+print(wordProbPrint)
+unname(freqProb['the'])
+#Extend your program to calculate the probability of two words occurring adjacent to each other. It should take in a document, and two words (say the and for) and compute the probability of each of the words occurring in the document and the joint probability of both of them occurring together.
+#Here's the joint probability answer, (not convinced it's the best way to go overall though!)
+
+twoWordProb <- function(word1, word2) {
+  cat("Probability of the word '", word1, "' is ", as.numeric(freqProb[word1]),"\n")
+  cat("Probability of the word '", word2, "' is ", unname(freqProb[word2]),"\n")
+  cat("Probability of the word '", word1, "' and the word '", word2, "'appearing together is", unname(freqProb[word1])*unname(freqProb[word2]))
+}
+
+twoWordProb("the", "for")
+
+
+#Compare your probabilities of various words with the Time Magazine corpus: http://corpus.byu.edu/time/
+#just comparing against the 2000's...which had 6754797 total words
+tot2k <- 6754797
+#the: 325152
+theOccur <- 325152
+thePerc <- theOccur/tot2k
+freqProb["the"] #is more than but I guess comperable to:
+thePerc
+
+#for: 57067
+forOccur <- 57067
+forPerc <- forOccur/tot2k
+freqProb["for"] #is more than:
+forPerc
+#year: 8253
+yearOccur <- 8253
+yearPerc <- yearOccur/tot2k
+freqProb["year"] #is comparable at these sample sizes to:
+yearPerc
+```
+
+
+

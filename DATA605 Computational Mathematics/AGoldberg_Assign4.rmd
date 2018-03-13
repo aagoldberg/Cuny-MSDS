@@ -1,0 +1,102 @@
+---
+title: "AGoldberg_Assign4.rmd"
+author: "Andrew Goldberg"
+date: "November 16, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Problem Set 1}
+A <- matrix(c(1,2,3,-1,0,4),byrow=TRUE, nrow=2)
+
+#Write code in R to compute X = AAT and Y = ATA
+
+X <- A%*%t(A)
+Y <- t(A)%*%A
+
+#Then, compute the eigenvalues and eigenvectors of X and Y using the built-in commands in R
+
+EigenX <- eigen(X)
+EigenY <- eigen(Y)
+
+#Then, compute the left-singular, singular values, and right-singular vectors of A using the svd command.
+
+svd(A)
+
+#Examine the two sets of singular vectors and show that they are indeed eigenvectors of X and Y.
+
+#with some signs changed...but no difference in matrix values
+eigen(X)$vectors
+#is the same as
+svd(A)$u
+
+eigen(Y)$vectors[,1:2]
+#is the same as
+svd(A)$v
+
+#In addition, the two non-zero eigenvalues (the 3rd value will be very close to zero, if not zero) of both X and Y are:
+
+#A. the same 
+isTRUE(all.equal(eigen(Y)$values[1], eigen(Y)$values[1]))
+isTRUE(all.equal(eigen(Y)$values[2], eigen(Y)$values[2]))
+#B. squares of the non-zero singular values of A.
+isTRUE(all.equal(svd(A)$d[1]^2, eigen(Y)$values[1]))
+isTRUE(all.equal(svd(A)$d[2]^2, eigen(Y)$values[2]))
+```
+
+```{r Problem Set 2}
+library(RConics)
+#Using the procedure outlined in section 1 of the weekly handout, write a function to compute the inverse of a well-conditioned full-rank square matrix using co-factors.
+
+#create random 5x5 matrix
+Ran5Matrix <- replicate(5, rnorm(5))
+
+#cofactor function
+cofactorFun <- function(x, i, j) {
+  size <- length(x[,1])
+  submatrix <- x[-i,-j]
+  ((-1)^(i+j))*det(submatrix)
+}
+
+#inverse function
+myinverse <- function(A) {
+  size <- length(A[,1])
+  cofactorMatrix <- matrix( , nrow = size, ncol = size)
+  for(i in 1:size){
+    for(j in 1:size){
+    cofactorMatrix[i,j] <- cofactorFun(A,i,j)  
+    }
+  }
+  
+  print("original matrix:")
+  print(A)
+  print("cofactor matrix:")
+  print(cofactorMatrix)
+  
+  detA <- A%*%t(cofactorMatrix)
+  print(" ")
+  print(" ")
+  print("Determinant(A) matrix")
+  print(detA)
+  
+  print(" ")
+  print(" ")
+  print("Inverse matrix B")
+  inverse <- solve(detA)%*%t(cofactorMatrix)
+  print(inverse)
+  
+  print(" ")
+  print(" ")
+  print("Approximate identity matrix")
+  imatrix <- A%*%inverse
+  print(imatrix)
+}
+
+B = myinverse(Ran5Matrix)
+print("computer solution to inverse")
+solve(Ran5Matrix)
+```

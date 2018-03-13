@@ -1,0 +1,102 @@
+---
+title: "AGoldberg_Assign9"
+author: "Andrew Goldberg"
+date: "November 30, 2016"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r problem 1}
+#First write a function that will produce a sample of random variable that is distributed as follows:
+#f(x) = 1-x, 0 <=x <= 1
+#f(x) = x-1, 1 < x <= 2
+
+#First explore and plot these functions. They form a triangular distribution, starting from 0 to 2, with 1 as the mode
+x <- function(x){x}
+plot(x)
+x2 <- function(x){2-x}
+plot(x2)
+
+#in an attempt to diverge from the answers in the video, I'll  use the triangle package
+library(triangle)
+
+#create a random variable between 0 and 2, distributed 
+c <- rtriangle(1000, 0, 2, 1)
+
+#(2) Now, write a function that will produce a sample of random variable that is distributed as follows:
+#f(x) = 1 - x, 0 <= x <= 1
+#f(x) = x - 1, 1 <  x <= 2
+
+min1x <- function(x){1-x}
+integrate(min1x,0,1)
+plot(min1x)
+xmin1 <- function(x){x-1}
+plot(xmin1)
+
+#these are also triangular, so....
+d <- rtriangle(10000, -1, 0, 1)
+```
+
+```{r q3}
+#again...for the first function
+c <- rtriangle(1000, 0, 2, 1)
+hist(c)
+
+#again...for the second function
+d <- rtriangle(1000, -1, 1, 0)
+hist(d)
+
+#combined
+e <- c(c,d)
+hist(e)
+```
+
+```{r q4}
+#Now, write a program that will take a sample set size n as a parameter and the PDF as the second parameter, and perform 1000 iterations where it samples from the PDF, each time taking n samples and computes the mean of these n samples. It then plots a histogram of these 1000 means that it computes.
+
+question4 <- function(n, pdf){
+  PDFsample <- seq(1,1000,1)
+  for(i in PDFsample){
+    samp <- sample(pdf, n, replace = TRUE)
+    PDFsample[i] <- mean(samp)
+  }
+  hist(PDFsample)
+  sprintf("the mean is: %s", mean(PDFsample))
+}
+
+question4(15,c)
+question4(15,d)
+question4(15,e)
+```
+
+```{r}
+#Verify that as you set n to something like 10 or 20, each of the two PDFs produce normally distributed mean of samples, empirically verifying the Central Limit Theorem. Please play around with various values of n and you'll see that even for reasonably small sample sizes such as 10, Central Limit Theorem holds.
+
+#rewriting function to just output results of shapiro-wilk test for normality:
+question5 <- function(n, pdf){
+  PDFsample <- seq(1,1000,1)
+  for(i in PDFsample){
+    samp <- sample(pdf, n, replace = TRUE)
+    PDFsample[i] <- mean(samp)
+  }
+  shapiro.test(PDFsample)
+}
+
+#at 100, all pass normalcy test
+question5(100,c)
+question5(100,d)
+question5(100,e)
+
+
+#even at 10 all pass normalcy test
+question5(10,c)
+question5(10,d)
+question5(10,e)
+
+#at 2, d and e fail
+question5(2,c)
+question5(2,d)
+question5(2,e)
+```
+

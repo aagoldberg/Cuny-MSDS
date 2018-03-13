@@ -1,0 +1,66 @@
+---
+title: "Assignment 7"
+author: "Andrew Goldberg"
+date: "November 28, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r ps1}
+RandArray <- sample(1:100)
+
+#create expected value, or mean, function
+ExpVal <- function(DataArray){
+  sum(DataArray)/length(DataArray)
+}
+
+#create standard deviation function
+StDev <- function(DataArray){
+  IndVar <- ExpVal((DataArray - ExpVal(DataArray))^2)
+  sqrt(IndVar)
+}
+
+#my expected value function gives same answer as r's mean function
+ExpVal(RandArray) == mean(RandArray)
+
+#however, r's standard deviation function calculated sample variance, not population variance
+StDev(RandArray) == sd(RandArray)
+#but...if we correct it...
+StDev(RandArray) == (sqrt(var(RandArray) * 99/100))
+```
+
+```{r second half of ps1}
+#Now, consider that instead of being able to neatly fit the values in memory in an array, you have an infinite stream of numbers coming by. How would you estimate the mean and standard deviation of such a stream?
+
+EstimateInfinite <- function(){
+
+#create variables  
+  streamcount <- 0
+  streammean <- 0
+  streamvar <- 0
+
+#build algorithm   
+    while(1 == 1){
+    x <- runif(1, min = 0, max = 100)
+    streamcount <- streamcount + 1
+    delta <- x - streammean
+    streammean <- streammean + (delta/streamcount)
+    streamvar <- streamvar + ((delta*(x - streammean)))
+    streamstdev <- sqrt(streamvar/(streamcount-1))
+
+#spent way too much time on figuring out how to stop the program from the keyboard, so had to compromise here. Maybe trycatch()?     
+    if((streamcount/1000) %% 1 == 0){
+      cat("...calculating, do you want answers now? (yes/no)")
+      line <- readline()
+      if(line == "yes"){
+        return(sprintf("after streaming %s integers, the mean is: %s, and the standard deviation is: %s", streamcount, streammean, streamstdev))
+             }
+           }
+           
+  }
+}
+EstimateInfinite()
+````

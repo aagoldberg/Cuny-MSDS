@@ -1,0 +1,95 @@
+---
+title: "Assignment 11"
+author: "Andrew Goldberg"
+date: "December 3, 2016"
+output: html_document
+---
+
+
+```{r Heartrate}
+age <- c(18,23,25,35,65,54,34,56,72,19,23,42,18,39,37)
+max.hr <- c(202,186,187,180,156,169,174,172,153,199,193,174,198,183,178) 
+
+heart.rate.fit <- lm(max.hr ~ age)
+heart.rate.fit
+summary(heart.rate.fit)
+#resulting equation:
+#MaxHR = 210 - .798xAge
+
+#With a p-value of '3.848e-08' (very small, definitely less than a .05 or even .01 significance level, can not accept the null), and r-squared of .9021 (explains high amount of variation in data), we would accept that the effect is significant 
+
+
+#Plot the fitted relationship between Max HR and Age.
+plot(age, max.hr)
+abline(heart.rate.fit)
+
+#there are a few outliers with strong leverage:
+plot(heart.rate.fit)
+
+#(instructions don't seem to be asking me to compare to the line 220-Age, so not sure why its included, hopefully I'm not missing anything...but just in case, here is the confidence interval:)
+library(MASS)
+#each confidence interval is the estimate +- 2 standard errors or...
+confint(heart.rate.fit, level = .95)
+```
+```{r lm mgp, n=40}
+#import and name data
+setwd("C:\\Users\\andrew\\Desktop\\Computational Math\\Week 5\\assign5 (2)\\assign5")
+auto.mpg <- read.table("auto-mpg.data", header = FALSE)
+colnames(auto.mpg) <- c('displacement', 'horsepower', 'weight', 'acceleration', 'mpg')
+
+#N=40
+auto.mpg.40samp <- auto.mpg[sample(nrow(auto.mpg), 40), ]
+
+mpg.fit.40samp <- lm(auto.mpg.40samp$mpg ~ auto.mpg.40samp$displacement + auto.mpg.40samp$horsepower + auto.mpg.40samp$weight + auto.mpg.40samp$acceleration)
+
+summary(mpg.fit.40samp)
+
+#final linear regression fit equation:
+#mpg = 47.820659 -.014265displacement - .070106horsepower -.002112weight -.577934acceleration
+
+#variables with significant impact on mpg:
+#horsepower: p-value of .0909 (passes at .05 significance)
+#acceleration: p-value of .0653 (passes at .05 significance)
+#displacement: p-value of .4272 (passes no standard significance tests)
+#weight: p-value of .2823 (passes no standard significance tests)
+
+#standard error on each coefficient:
+#displacement: .017756
+#horsepower: .040326
+#weight: .001934
+#acceleration: .303700
+
+#calculate confidence interval: 
+#each confidence interval is the estimate +- 2 standard errors or...
+confint(mpg.fit.40samp, level = .95)
+```
+
+```{r}
+
+
+mpg.fit <- lm(auto.mpg$mpg ~ auto.mpg$displacement + auto.mpg$horsepower + auto.mpg$weight + auto.mpg$acceleration)
+
+summary(mpg.fit)
+
+#final linear regression fit equation:
+#mpg = 42.251 -.006displacement - .04horsepower -.005weight -.023acceleration
+
+#variables with significant impact on mpg:
+#horsepower: p-value of .008 (passes at .01 significance)
+#weight: p-value of 2.3e-10 (passes at .001 significance)
+#displacement: p-value of .37166 (passes no standard significance tests)
+#acceleration: p-value of .85388 (passes no standard significance tests)
+
+#standard error on each coefficient:
+#displacement: .0067
+#horsepower: .0166
+#weight: .0008
+#acceleration: .1256
+
+#calculate confidence interval: 
+
+#each confidence interval is the estimate +- 2 standard errors or...
+confint(mpg.fit, level = .95)
+```
+
+

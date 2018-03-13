@@ -1,0 +1,46 @@
+---
+title: "Assignment 8"
+author: "Andrew Goldberg"
+date: "November 27, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r PS1}
+#Your colleague either commutes by train or by the bus. 20 days of the month, she takes the train and the remaining 10 days she takes the bus. If she takes the train, she reaches work on time with a probability of 0:9. If she takes the bus, she frequently gets stuck in traffic and reaches work on time with a probability of 0:5. Given that she was on time today, what is the probability that she took the bus to work today?
+
+#using formula:
+ProbOnTimeGivenBus <- (.5)
+ProbBus <- (1/3)
+ProbOnTime <- ((1/3)*.5)+((2/3)*.9)
+ProbBusGivenOnTime <- (ProbOnTimeGivenBus*ProbBus)/ProbOnTime
+ProbBusGivenOnTime
+```
+
+
+```{r PS2}
+library(gRain)
+
+#specify conditional probability tables
+lh <- c("low", "high")
+yn <- c("yes", "no")
+difficulty    <- cptable(~difficulty, values=c(.7, .3), levels=yn)
+intelligence  <- cptable(~intelligence, values=c(.8,.2), levels=lh)
+sat           <- cptable(~sat|intelligence, values=c(.9,.1,.2,.8), levels=lh)
+grd.di        <- cptable(~grade|difficulty:intelligence, values=c(.8,.2,.6,.4,.1,.9,.01,.99), levels=lh)
+let.grd       <- cptable(~letter|grade, values=c(.9,.1, .05, .95), levels=lh)
+
+#compile list of conditional probability tabes and create the network
+plist <- compileCPT(list(difficulty, intelligence, sat.intel, grd.di, let.grd))
+net1  <- grain(plist)
+
+#In the Grade Network that we looked at in the notes, what happens to the probability of Diculty of Course when you present the evidence that the received recommendation letter was good?
+querygrain(setEvidence(net1, nodes="letter", states="high"))$difficulty
+
+#present the evidence that both SAT scores were good and the letter of recommendation was good, What is the probability of the Diffculty of Course now?
+querygrain(setEvidence(net1, nodes=c("letter","sat"), states=c("high", "high")))$difficulty
+```

@@ -1,0 +1,33 @@
+---
+title: "Assignment 12"
+author: "Andrew Goldberg"
+date: "December 4, 2016"
+output: html_document
+---
+
+```{r}
+setwd("C:\\Users\\andrew\\Desktop\\Computational Math\\Week 5\\assign5 (2)\\assign5")
+auto.mpg <- read.table("auto-mpg.data", col.names = c('disp', 'hp', 'wt', 'acc', 'mpg'))
+library("stats")
+library("boot")
+head(auto.mpg)
+summary(auto.mpg)
+
+cv.err5 <- c()
+
+for(i in 1:8){
+  
+  glm.fit <- glm(mpg~poly(disp+hp+wt+acc,i), data=auto.mpg)
+  cv.err5[i] <- cv.glm(auto.mpg,glm.fit,K=5)$delta[1]
+}
+
+cv.err5
+
+degree=1:8
+plot(degree,cv.err5, type='b')
+
+#not a perfect U curve, but does rise after the 3rd degree polynomial
+
+
+```
+

@@ -1,0 +1,42 @@
+---
+title: "IS605 HW1"
+author: "Andrew Goldberg"
+date: "September 17, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Problem Set 1}
+#(1)Calculate the dot product u:v where u = [0:5; 0:5] and v = [3;-????4]
+u <- c(.5, .5)
+v <- c(3,-4)
+
+dotproduct <- function(vector1, vector2){
+  product <- vector1 * vector2
+  dotted <- product[1] + product[2]
+  return(dotted)
+}
+dotproduct(u,v)
+
+#(2)What are the lengths of u and v?
+#"length of u:"
+Lu <- sqrt(dotproduct(u,u))
+Lu
+
+#"length of v:"
+Lv <- sqrt(dotproduct(v,v))
+Lv
+
+#(3) What is the linear combination: 3u-2v?
+LinComb <- (3*u)-(2*v)
+LinComb
+
+#(4) What is the angle between u and v
+ForArc <- dotproduct(u,v)/(Lu*Lv)
+acos(ForArc)
+```
+

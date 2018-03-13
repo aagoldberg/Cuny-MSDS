@@ -1,0 +1,80 @@
+---
+title: "HW2 AGOLDBERG"
+author: "Andrew Goldberg"
+date: "November 6, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r q1a}
+#1. Show that (At)(A) != (A)(At) in general.
+#First, only square matrices will allow for A to be multiplied both before and after its transpose
+
+A <- matrix(seq(from=1,to=9), nrow=3, byrow=T)
+B <- matrix(seq(from=1,to=6), nrow=2, byrow=T)
+#technically works:
+A%*%t(A)
+t(A)%*%A
+#technically doesn't work:
+B%*%t(b)
+
+#Second, matrix multiplication is not commutative: 
+#A%*%t(A) did not equal t(A)%*%A
+```
+
+
+```{r q1b}
+#2.For a special type of square matrix A, we get (At)A = A(At). Under what conditions could this be true?
+
+#this is a symetric matrix, so the matrix equals its own transpose: so A = t(A)
+#the diagonals are the same, and each entry on one side of the diagonal has to equal the entry on the side, or aij = aji
+```
+
+```{r q2, echo=FALSE}
+#ps2: Write an R function to factorize a square matrix A into LU or LDU
+Orig_Matrix <- matrix(seq(from=1, to=25), nrow=5, byrow=T)
+Orig_Matrix <- replicate(5, rnorm(5))
+
+print("Original Matrix")
+Orig_Matrix
+
+LUdecomp <- function(OMatrix) {
+  size <- length(OMatrix[,1])
+  elimatrix <- matrix(0, size, size)
+  
+  for(i in 1:size){
+    elimatrix[i,i] <- 1
+  }
+  print(elimatrix)
+  
+  for(i in head(1:nrow(OMatrix),-1)){
+# supposedly don't have to permute A, which I hope means don't have to row swap
+    for(j in head(i:nrow(OMatrix),-1)){
+      multiplier <- (OMatrix[(j+1),][i])/(OMatrix[i,][i])
+      print(multiplier)
+      print(i)
+      print(j+1)
+      elimatrix[(j+1),i] <- multiplier
+      print(elimatrix)
+      OMatrix[(j+1),] <- OMatrix[(j+1),] - (multiplier*OMatrix[i,])
+      print(OMatrix)
+      print(elimatrix%*%OMatrix)
+      }  
+  }
+  print("L Matrix")
+  print(elimatrix)
+  print(" ")
+  print("U Matrix")
+  print(OMatrix)
+  print(" ")
+  print("L times U")
+  print(elimatrix%*%OMatrix)
+}
+
+LUdecomp(Orig_Matrix)
+```
+

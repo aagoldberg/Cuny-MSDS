@@ -1,0 +1,79 @@
+---
+title: "Assignment 13"
+author: "Andrew Goldberg"
+date: "December 5, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r q1}
+#Write a program to compute the derivative of f(x) = x^3 + 2x^2 at any value of x.
+
+first.derivative <- function(x){
+  h <- .000000001 #limit as h approaches 0
+  (((x+h)^3) + (2*((x+h)^2)) - (x^3) - (2*(x^2)))/h
+}
+first.derivative(3)
+
+#Now, write a program to compute the area under the curve for the function 3x^2+4x in the range x = [1,3]. You should first split the range into many small intervals using some really small change x value (say 1e-6) and then compute the approximation to the area under the curve.
+
+second.derivative <-function(x1, x2)
+  {
+  second.integral <- function(x){((3*(x^3))/3 + ((4*(x^2))/2))} #set integral function
+  total.area <- 0
+  total.intervals <- ((x2 - x1)/.000001) #calculate amount of intervals to run through
+  spot <- x1
+  for(i in 1:total.intervals){
+    interval.area <- second.integral(spot + .000001) - second.integral(spot) #area at each interval
+    total.area <- total.area + interval.area #accumulate interval areas
+    spot <- spot + .000001
+    }
+  print(total.area)
+  }
+
+second.derivative(1,3)
+```
+
+Solving Analytically
+integral[f(x)g'(x)dx] = f(x)g(x) - integral [f'(x)g(x)dx]
+
+A. integral[sin(x)cos(x)dx
+assignments: f(x) = sin(x), f'(x) = cos(x), g(x) = sin(x), g'(x) = cos(x)
+integral[sin(x)cos(x)dx] = sin(x)sin(x) - integral[cos(x)sin(x)dx]
+
+then..integral[cos(x)sin(x)dx]
+assignments: 
+f(x) = cos(x), f'(x) = -sin(x), g(x) = -cos(x), g'(x) = sin(x)
+integral[cos(x)sin(x)dx] = cos(x)-cos(x) - integral[-sin(x)-cos(x)dx]
+
+plugging in to original...
+integral[sin(x)cos(x)dx] = sin(x)sin(x) - cos(x)cos(x) + integral[-sin(x)-cos(x)dx]
+integral[sin(x)cos(x)dx] = sin(x)sin(x) - cos(x)cos(x) - integral[sin(x)cos(x)dx]
+2(integral[sin(x)cos(x)dx]) = sin(x)sin(x) - cos(x)cos(x)
+integral[sin(x)cos(x)dx] = (sin(x)sin(x) - cos(x)cos(x))/2 + C
+
+...a triganomic identity is cos(a+b) = cos(a)cos(b) - sin(a)sin(b), so...
+integral[sin(x)cos(x)dx] = (-cos(2x))/2 + C
+
+B. integral[x^2e^xdx
+assignments: f(x) = x^2, f'(x) = 2x, g(x) = e^x, g'(x) = e^x
+
+integral[x^2e^xdx = x^2e^x - 2(integral[x(e^x)dx)
+
+integral[x(e^x)dx
+assignments: f(x) = x, f'(x) = 1, g(x) = e^x, g'(x) = e^x
+integral[x(e^x)dx = xe^x - integral[e^xdx]
+integral[x(e^x)dx = xe^x - e^x
+plugging in...
+integral[x^2e^xdx = x^2e^x - 2(xe^x - e^x) + C
+integral[x^2e^xdx = x^2(e^x) -2(x(e^x)) + 2e^x + C
+
+C. d/dx(x(cos(x)))
+= cos(x)-sin(x)(x)
+
+D. d/dx(e^x^4)
+= 4x(e^x^4)
+
