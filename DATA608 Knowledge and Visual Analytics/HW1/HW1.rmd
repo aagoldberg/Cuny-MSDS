@@ -1,0 +1,76 @@
+---
+title: "Data608_HW1_AGoldberg"
+author: "Andrew Goldberg"
+date: "2/5/2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{Setup and Problem1}
+dat <- read.csv('https://raw.githubusercontent.com/charleyferrari/CUNY_DATA608/master/lecture1/Data/inc5000_data.csv')
+summary(dat)
+head(dat)
+library(dplyr)
+library(ggplot2)
+
+#1. Create a graph that shows the distribution of companies in the dataset by State (ie how many are in each state). 
+
+#count companies by state
+companyState <- dat %>%
+  select(Name, State) %>%
+  group_by(State) %>%
+  summarise(Companies = n())
+companyState
+
+#reverse order of state names
+companyState <- within(companyState, State <- ordered(State, levels = rev(State)))
+
+#plot barchart
+ggplot(companyState, aes(y = Companies, x = State)) + geom_bar(fill = 'orange3', stat='identity') + coord_flip()
+```
+
+```{Problem 2}
+#2. Create a plot of average employment by industry for companies in this state 
+
+#find state with third most companies
+orderedStates <- companyState %>%
+  arrange(desc(Companies))
+thirdState <- orderedStates[3,][,1]
+dat$State[dat$State == toString(thirdState)]
+#filter by third state
+avgEmploymentIndustry <- dat %>%
+  filter(State == toString(thirdState[[1]])) 
+avgEmploymentIndustry <- avgEmploymentIndustry[complete.cases(avgEmploymentIndustry),]
+
+#reverse order of industry names
+avgEmploymentIndustry <- within(avgEmploymentIndustry, Industry <- ordered(Industry, levels = rev(Industry)))
+
+#define limits to exclude outliers
+outlierLimits <- as.numeric(quantile(avgEmploymentIndustry$Employees, c(0.1, 0.9)))
+
+#plot barchart
+ggplot(avgEmploymentIndustry, aes(y = Employees, x = Industry)) + geom_boxplot(outlier.shape=NA, fill = 'orange3') + scale_y_continuous(limits = outlierLimits) + coord_flip()
+
+```
+
+```{Problem 3}
+#3 Now imagine you work for an investor and want to see which industries generate the most revenue per employee.
+
+#calculate revenue per employee
+revenueEmployee <- dat %>%
+  select(Revenue, Employees, Industry) %>%
+  mutate(revEmploy = Revenue / Employees)
+
+#remove incomplete cases
+revenueEmployee<- revenueEmployee[complete.cases(revenueEmployee),]
+
+#define limits to exclude outliers
+outlierLimits <- as.numeric(quantile(revenueEmployee$revEmploy, c(0.1, 0.9)))
+
+#plot barchart
+ggplot(revenueEmployee, aes(y = revEmploy, x = Industry)) + geom_boxplot(outlier.shape=NA, fill = 'orange3') + scale_y_continuous(limits = outlierLimits) + coord_flip()
+
+```

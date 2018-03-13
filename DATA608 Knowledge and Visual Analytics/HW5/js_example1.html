@@ -1,0 +1,122 @@
+<html>
+
+<head><title>Intro to JS in a Browser</title></head>
+
+<body>
+
+<h1>Intro to JS in a Browser</h1>
+<h2>All of the below is created with Javascript. </h2>
+
+<script type="text/javascript">
+// Here are some examples of things that you might want to do with Javascript
+// writing to a document directly
+document.write('<p><b>While you are working in Javascript (or any language), it is really important to be able to debug. Some browsers offer very simple ways to see what is happening on a page.</b></p>');
+document.write('<p>Chrome and Firefox in particular offer good Developer Tools and Javascript console access</p><br>');
+</script>
+
+<script type="text/javascript">
+// Find this bug in the console and fix it!
+document.write('<p>These are really helpful for finding bugs!</p><br>');
+</script>
+
+
+<script type="text/javascript">
+// Variables and Math:
+var num1 = '5';
+var num2 = '5';
+var answer;
+answer = +num1 + +num2
+document.write(num1 + ' plus ' + num2 + '= ' + answer );
+document.write('<p>An example of a random number would be ' + Math.random() + '</p>');
+var rightNow = new Date();
+document.write('<p>Right now it is ' + rightNow + '<p>');
+</script>
+
+
+<script type="text/javascript">
+document.write('<br><p>HW Q1: Let us reverse a word')
+// Basic functions
+function rev(word){
+    var reversed = word.split('').reverse().join('');
+    return(reversed)
+};
+function back1(){
+    var t1 = document.getElementById("target1");
+    t1.innerHTML = rev(document.getElementById('word').value);
+}
+</script>
+<p>
+<form>
+    <input id="word" type="text" size="20">
+    <input type="button" value="reverse" onClick="back1();">
+</form>
+</p>
+
+<div id="target1"></div>
+
+
+<script type="text/javascript">
+document.write('<br><p>HW Q2: Let us create a table of multiples')
+// Basic functions
+// function multiple(num){
+//     var mults = [num];
+//     for(count = 1; count < 20; count++){
+//         mults.push(+mults[count-1] + +num)
+//     };
+
+//     return(mults)
+// };
+
+function multiple(num){
+    var mults = [num];
+    for(count = 1; count < 20; count++){
+        mults.push(+mults[count-1] + +num)
+    };
+    return(mults)
+};
+
+document.write(multiple(document.getElementById('initNum').value))
+function back2(){
+    var myTableMult = document.getElementById("target2")
+    var inputNum = document.getElementById('initNum').value
+    var table = document.createElement('TABLE')
+    var tableBody = document.createElement('TBODY')
+    var multiples = multiple(document.getElementById('initNum').value);
+    table.appendChild(tableBody);
+
+
+    for (i = 0; i < 5; i++) {
+        var tr = document.createElement('TR');
+        for (j = 1; j < 5; j++) {
+            var td = document.createElement('TD')
+            var multsPos = ((i*4)+j);
+            td.appendChild(document.createTextNode(multiples[multsPos]));
+            tr.appendChild(td)
+        }
+        tableBody.appendChild(tr);
+    }
+    myTableMult.appendChild(table)
+
+
+    // t2.innerHTML = multiple(document.getElementById('initNum').value);
+}
+</script>
+<p>
+<form>
+    <input id="initNum" type="text" size="20">
+    <input type="button" value="multiply" onClick="back2();">
+</form>
+</p>
+
+<div id="target2"></div>
+
+<!-- <table id="multTable">
+  <tr><td>2</td><td>4</td><td>6</td><td>8</td></tr> 
+  <tr><td>10</td><td>12</td><td>14</td><td>16</td></tr>
+   <tr><td>18</td><td>20</td><td>22</td><td>24</td></tr>
+    <tr><td>26</td><td>28</td><td>30</td><td>32</td></tr>
+     <tr><td>34</td><td>36</td><td>38</td><td>40</td></tr>
+</table> -->
+
+</body>
+</html>

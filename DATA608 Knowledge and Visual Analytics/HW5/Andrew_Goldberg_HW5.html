@@ -1,0 +1,80 @@
+<html>
+
+<head><title>Andrew Goldberg</title></head>
+
+<body>
+
+<h1>Andrew Goldberg</h1>
+<h1>Assignmmnt 5</h1>
+
+
+
+<script type="text/javascript">
+document.write('<br><p>HW Q1: Let us reverse a word')
+// Basic functions
+function rev(word){
+    var reversed = word.split('').reverse().join('');
+    return(reversed)
+};
+function back1(){
+    var t1 = document.getElementById("target1");
+    t1.innerHTML = rev(document.getElementById('word').value);
+}
+</script>
+<p>
+<form>
+    <input id="word" type="text" size="20">
+    <input type="button" value="reverse" onClick="back1();">
+</form>
+</p>
+
+<div id="target1"></div>
+
+
+<script type="text/javascript">
+document.write('<br><p>HW Q2: Let us create a table of multiples')
+
+
+function multiple(num){
+    var mults = [num];
+    for(count = 1; count <= 20; count++){
+        mults.push(+mults[count-1] + +num)
+    };
+    return(mults)
+};
+
+function back2(){
+    var myTableMult = document.getElementById("target2")
+    var inputNum = document.getElementById('initNum').value
+    var table = document.createElement('TABLE')
+    var tableBody = document.createElement('TBODY')
+    var multiples = multiple(document.getElementById('initNum').value);
+    table.appendChild(tableBody);
+
+
+    for (i = 0; i < 5; i++) {
+        var tr = document.createElement('TR');
+        for (j = 1; j < 5; j++) {
+            var td = document.createElement('TD')
+            var multsPos = ((i*4)+j);
+            td.appendChild(document.createTextNode(multiples[multsPos]));
+            tr.appendChild(td)
+        }
+        tableBody.appendChild(tr);
+    }
+    myTableMult.appendChild(table)
+
+}
+
+</script>
+<p>
+<form>
+    <input id="initNum" type="text" size="20">
+    <input type="button" value="multiply" onClick="back2();">
+</form>
+</p>
+
+<div id="target2"></div>
+
+</body>
+</html>

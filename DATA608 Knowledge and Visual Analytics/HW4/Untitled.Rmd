@@ -1,0 +1,26 @@
+---
+title: "Homework Module 3: Question 1"
+author: "Andrew Goldberg"
+date: "3/4/2017"
+output: html_document
+---
+
+```{r import}
+cdcData <- read.csv("https://raw.githubusercontent.com/charleyferrari/CUNY_DATA608/master/lecture3/data/cleaned-cdc-mortality-1999-2010-2.csv")
+```
+
+```{r data manipulation}
+summary(cdcData)
+head(cdcData)
+paste(unique(cdcData$ICD.Chapter), collapse = "' , '")
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
