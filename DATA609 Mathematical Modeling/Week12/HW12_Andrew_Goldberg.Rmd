@@ -1,0 +1,259 @@
+---
+title: "HW12_Andrew_Goldberg"
+author: "Andrew Goldberg"
+date: "4/20/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Page 529: 1 
+Verify that the given function pair is a solution to the first-order system.
+$$x = {-e^t}$$
+$$y = {e^t}$$
+$$\frac{dx}{dt} = -y$$
+$$\frac{dy}{dt} = -x$$
+This is easily verified from the differentiation formulas
+$$\frac{dy}{dt} = \frac{d}{dt}({-e^t}) = {-e^t} = -\frac{-dx}{dt} = \frac{-d}{dt}(e^t) = -e^t$$
+
+### Page 529: 6
+Find and classify the rest points of the given autonomous system
+$$\frac{dx}{dt} = -(y-1)$$
+$$\frac{dy}{dt} = x-2$$
+because rest points = 0
+-(y-1)=0
+y=1
+
+x-2 = 0
+x=2
+So rest point is 2,1
+
+### Page 536: 7
+Show that the two trajectories leading to (m=n, a=b/ shown in Figure 12.8 are unique.  
+
+#### a. From system (12.6) derive the following equation:
+$$\frac{dy}{dx} = \frac{(m-nx)y}{(a-by)x}$$
+$$\frac{dx}{dt} = (a-by)x$$
+turns into...
+$$dx = dt(a-by)x$$
+similarly
+$$\frac{dy}{dt} = (m-nx)y$$
+turns into
+$$dy = dt(m-nx)y$$
+dividing dy by dx, we can cancel out the dt's to have...
+$$\frac{dy}{dx} = \frac{(m-nx)y}{(a-by)x}$$  
+
+### b. Separate variables, integrate, and exponentiate to obtain
+$${y^a}{e^{-by}} = K{x^m}{e^{-nx}}$$  
+
+### where K is a constant of integration
+
+First...separate variables
+$$dy(a-by)x = dx(m-nx)y$$
+$$\frac{a-by}{y}dy = \frac{m-nx}{x}dx$$
+$$(\frac{a}{y}-b)dy = (\frac{m}{x}-n)dx$$
+..Then integrate...
+$$aln|y|-by=mln|x|-nx+k_{1}$$
+apply logarithm...
+$$ln\frac{|y|^a}{|x|^m}=by-nx+k_{1}$$
+take antilog
+$$\frac{y^a}{x^m}=e^{by-nx+k_{1}}$$
+$${y^a}{e^{-by}}={x^m}{e^{-nx}{e^{k_{1}}}}$$
+allow 
+$$e^{k_{1}}=K$$
+$${y^a}{e^{-by}}={x^m}{e^{-nx}K}$$  
+
+### c. Let
+$$f(y)=\frac{y^{a}}{e^{by}}$$
+$$g(x)=\frac{x^m}{e^{nx}}$$
+Show that f(y) has a unique maximum of 
+$$M_{y}=(\frac{a}{eb})^a$$
+when 
+$$y=\frac{a}{b}$$
+
+as shown in figure 12.12. Similarly show that g(x) has a unique maximum 
+$$M_{x}=(\frac{x}{en})^m$$
+when 
+$$x=\frac{m}{n}$$
+first..differentiate
+$$\frac{d(f(y))}{dy}=\frac{ay^{a-1}}{e^{by}}+\frac{-by^a}{e^{by}}$$
+set to 0...
+$$\frac{ay^{a-1}+by^a}{e^{by}}=0=y^{a-1}(a-yb)$$
+$$y=\frac{a}{b},0$$
+second derivative test:
+$$\frac{d^2f(y)}{dy^2}=\frac{\frac{ay^{a-1}+by^a}{e^{by}}}{dy}$$
+$$=(-be^{-by}ay^{a-1})+(e^{-by}(a-1)ay^{a-2})-(be^{-by}by^a)+(e^{-by}ay^{a-1})$$
+$$=\frac{(((a-1)ay^{a-2}-ay^{a-1})-b(ay^{a-1}-y^a))}{e^{by}}$$
+if we set y=0, we'll get 0
+Subsititute y=a/b...we'll get a messy equation, but it will be less than 0 because the second half of the top equation has higher powers than the first half and is therefore larger. Therefore y=a/b is a unique critical point that yeilds the relative max. 
+
+The value of the max is...
+$$y^ae^{-by} = \frac{(\frac{a}{b})^a}{e^a} = M_{y}= (\frac{a}{eb})^a$$
+If we changed the letters in the equation to:
+$$x^me^{-nx}$$
+We would go through the same process and end up with the correlated answer:
+$$M_{x}=(\frac{x}{en})^m$$
+### D. consider what happens as (x,y) approaches (m/n, a/b). Take limits in part(b) as x->m/n and y->a/b to show that
+$$lim_{{y\to\frac{a}{b}}{x\to\frac{m}{n}}}[(\frac{y^a}{e^{by}})(\frac{e^{nx}}{x^m})]=K$$
+or My/Mx=K. Thus any solution trajectory that approaches (m/n, a/b) must satisfy
+
+$$\frac{y^a}{e^{by}}=(\frac{M_y}{M_x})(\frac{x^m}{e^{nx}})$$
+substitute the limits:
+$$(\frac{a}{eb})^a(\frac{en}{x})^m = K$$
+or...
+$$\frac{M_y}{M_x}=K$$
+substitute the value in K...
+$$(\frac{y^a}{e^{by}})=(\frac{M_y}{M_x})(\frac{x^m}{e^{nx}})$$
+
+
+### E.Show that only one trajectory can approach (m/n, a/b) from below the line y=a/b. Pick yo less than a/bc. From figure 12.12 you can see that f(yo)"<"My, which implies that
+
+$$\frac{M_{y}}{M_{x}}(\frac{x^m}{e^{nx}})=\frac{y_0^a}{e^{by_0}}{<}M_{y}$$
+
+
+
+This in turn implies that
+$$\frac{x^m}{e^{nx}}<M_{x}$$
+Figure 12.12 tells you that for g(x) there is a unique value xo less than m/n satisfying this last inequality. That is, for each y less than a/b there is a unique value of x satisfying the equation in part (d). Thus there can exist only one trajectory solution approaching (m/n, a / B) from below, as show in figure 12.13.
+
+This is solved...
+
+### F.Use a similar argument to show that the solution trajectory leading to (m/n, a/ b) is unique if (yo more than aye divided by bee).
+
+$$y_0>\frac{a}{b}$$
+$$\frac{M_y}{M_x}(\frac{x^m}{e^{nx}})=\frac{y_0^a}{e^{by_0}}<M_y$$
+
+$$\frac{M_y}{M_x}(\frac{x^m}{e^nx})<M_y$$
+$$\frac{x^m}{e^{nx}}<M_x$$
+
+
+## Page 546: 1
+Apply the first and second derivate tests to the function f(y)=y^a/e^by to show that y=a/b is a unique critical point that yields the relative maximum f(a/b). Show also that f(y) approaches zero as y tends to infinity
+
+$$f(y)=\frac{y^a}{e^{by}}$$
+$$\frac{d(\frac{y^a}{e^{by}})}{dy}=0$$
+$$\frac{e^{by}ay^{a-1}-y^abe^{by}}{e^{2by}} = 0$$
+
+e^2by can never be 0 so...
+$$\frac{e^{by}}{y^{a-1}}(a-yb)=0$$
+$$y=\frac{a}{b}, 0$$
+second derivative test:
+$$\frac{d^2f(y)}{dy^2}=\frac{\frac{ay^{a-1}+by^a}{e^{by}}}{dy}$$
+$$=(-be^{-by}ay^{a-1})+(e^{-by}(a-1)ay^{a-2})-(be^{-by}by^a)+(e^{-by}ay^{a-1})$$
+$$=\frac{(((a-1)ay^{a-2}-ay^{a-1})-b(ay^{a-1}-y^a))}{e^{by}}$$
+if we set y=0, we'll get 0
+Subsititute y=a/b...we'll get a messy equation, but it will be less than 0 because the second half of the top equation has higher powers than the first half and is therefore larger. Therefore y=a/b is a unique critical point that yeilds the relative max. 
+
+The value of the max is...
+$$y^ae^{-by} = \frac{(\frac{a}{b})^a}{e^a} = M_{y}= (\frac{a}{eb})^a$$
+The graph itself clearly shows an asymptotic curve approaching 0 as y tends toward infinity. 
+By logic, alone, due to the y as a power in the denominator, compared to only an a-powered integer in the numerator, it's clear that demoniator will grow at a much higher rate than the numerator as y tends to infinity, making the fraction approach 0. 
+
+
+## Page 566: 1
+use Euler’s method to solve the first-order system subject to the specified initial condition. Use the given step size Åt and calculate the first three approximations (x1,y1), (x2, y2), and (x3,y3).  Then repeat your calculations for Åt=2. Compare your approximations with the values of the given analytical solution.
+
+$$\frac{dx}{dt}=2x+3y$$
+
+$$\frac{dy}{dt}=3x+2y$$
+$$x(0)=1,y(0)=1,{\Delta}t=\frac{1}{4}$$
+$$x(t)=\frac{1}{2}e^{-t}+\frac{1}{2}e^{5t}$$
+$$y(t)=-\frac{1}{2}e^{-t}+\frac{1}{2}e^{5t}$$
+so...assuming we start at t=0
+$$t_0=0, t_1=t_0+{\Delta}t=0.25, t_2=t_1+{\Delta}t=0.50, t_3=t_2+{\Delta}t=0.75$$
+First (x1,y1):
+$$x_1=x_0+f(t_0,x_0,y_0){\Delta}t$$
+$$x_1=x_0+(2x_0+3y_0){\Delta}t$$
+$$x_1=1+(2(1)+(3(1)).25=2.25$$
+$$y_1=y_0+f(t_o,x_0,y_0){\Delta}t$$
+$$y_1=y_0+(3x_0+2y_0){\Delta}t$$
+
+$$y_1=1+(3(1)+(2(1)).25=2.25$$
+#Calculations at change T = .25
+```{r}
+x0 <- 1
+y0 <- 1
+dt <- .25
+paste0("@t")
+#rehashing first
+x1 <- x0 + (2 * x0 + 3 * y0)*dt
+y1 <- y0 + (3 * x0 + 2 * y0)*dt
+paste0("x1=",x1,"  y1=",y1)
+#second (x2,y2):
+x2 <- x1 + (2 * x1 + 3 * y1)*dt
+y2 <- y1 + (3 * x1 + 2 * y1)*dt
+paste0("x2=",x2,"  y2=",y2)
+#third (x3,y3):
+x3 <- x2 + (2 * x2 + 3 * y2)*dt
+y3 <- y2 + (3 * x2 + 2 * y2)*dt
+paste0("x3=",x3,"  y3=",y3)
+
+#compare approximations with values of the given analytic solution
+paste0("@t/2")
+t0 <- 0
+t1 <- .25
+t2 <- .5
+t3 <- .75
+e <- (exp(1))
+#first (t = 0)
+xt0 <- .5 * e^(-t0) + .5 * e^(5*t0)
+yt0 <- -.5 * e^(-t0) + .5 * e^(5*t0)
+paste0("xt0=",xt0,"  yt0=",yt0)
+#second (t = .25)
+xt1 <- .5 * e^(-t1) + .5 * e^(5*t1)
+yt1 <- -.5 * e^(-t1) + .5 * e^(5*t1)
+paste0("xt1=",xt1,"  yt1=",yt1)
+#third (t = .50)
+xt2 <- .5 * e^(-t2) + .5 * e^(5*t2)
+yt2 <- -.5 * e^(-t2) + .5 * e^(5*t2)
+paste0("xt2=",xt2,"  yt2=",yt2)
+#forth (t = .75)
+xt3 <- .5 * e^(-t3) + .5 * e^(5*t3)
+yt3 <- -.5 * e^(-t3) + .5 * e^(5*t3)
+paste0("xt3=",xt3,"  yt3=",yt3)
+```
+
+#Calculations at change T = 1.25
+```{r}
+x0 <- 1
+y0 <- 1
+dt <- .125
+
+#rehashing first
+x1 <- x0 + (2 * x0 + 3 * y0)*dt
+y1 <- y0 + (3 * x0 + 2 * y0)*dt
+paste0("x1=",x1,"  y1=",y1)
+#second (x2,y2):
+x2 <- x1 + (2 * x1 + 3 * y1)*dt
+y2 <- y1 + (3 * x1 + 2 * y1)*dt
+paste0("x2=",x2,"  y2=",y2)
+#third (x3,y3):
+x3 <- x2 + (2 * x2 + 3 * y2)*dt
+y3 <- y2 + (3 * x2 + 2 * y2)*dt
+paste0("x3=",x3,"  y3=",y3)
+
+#compare approximations with values of the given analytic solution
+t0 <- 0
+t1 <- .125
+t2 <- t1*2
+t3 <- t1*3
+e <- (exp(1))
+#first (t = 0)
+xt1 <- .5 * e^(-t0) + .5 * e^(5*t0)
+yt1 <- -.5 * e^(-t0) + .5 * e^(5*t0)
+paste0("xt1=",xt1,"  yt1=",yt1)
+#second (t = .125)
+xt2 <- .5 * e^(-t1) + .5 * e^(5*t1)
+yt2 <- -.5 * e^(-t1) + .5 * e^(5*t1)
+paste0("xt2=",xt2,"  yt2=",yt2)
+#third (t = .250)
+xt3 <- .5 * e^(-t2) + .5 * e^(5*t2)
+yt3 <- -.5 * e^(-t2) + .5 * e^(5*t2)
+paste0("xt3=",xt3,"  yt3=",yt3)
+```
+t/4 reduces the overall margin of differences, but seems to follow the pattern worse than regular t (up to 2)
+

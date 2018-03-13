@@ -1,0 +1,205 @@
+---
+title: "HW9_Andrew_Goldberg"
+author: "Andrew Goldberg"
+date: "3/29/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+####Page 385: 
+Using the definition provided for the movement diagram, determine whether the fol- lowing zero-sum games have a pure strategy Nash equilibrium. If the game does have a pure strategy Nash equilibrium, state the Nash equilibrium.  
+  
+1a  
+...........Colin  
+............C1...C2  
+rose...r1...10...10  
+.......r2....5....0  
+
+The book does not explain ties clearly, such as colin's result if rose chooses r1, so its not clear if this is technically a pure Nash equilibrium or not. My guess is that it is a Nash Equilibrium, but not a PURE Nash Equilibrium though, because colin should still choose C1 under all situations, because his payoff is better if rose choses r2. So it looks like a stable situation, althogh because Colin always receives 10 when rose chooses r1, its not pure. Yet, Rose chooses r1, Colin chooses r2.  
+
+
+1c
+
+..................Pitcher  
+..................Fastball...Knuckleball  
+Batter..fastball...400........100    
+........knuckle....300.........250  
+
+This is not a pure nash equilibrium because the batter does not have a single dominant strategy, even though the pitcher does (knuckleball).  Yet, because the pitcher has a dominant strategy, with perfect information, the batter would know to guess knuckle, and it would be a stable situation, and possibly a nash equilibrium, but not a PURE nash equilibrium. 
+
+####Page 404: 2a
+
+Build a linear programming model for each player’s decisions and solve it both geometrically and algebraically. Assume the row player is maximizing his payoffs which are shown in the matrices below.
+
+...........Colin  
+............C1...C2  
+rose...r1...10...10  
+.......r2....5....0 
+
+Rose's linear program:  
+A <= 10(x) + 5(1-x)   Colin @ c1  
+A <= 10(x) + 0(1-x)   Colin @ c2  
+x >= 0  
+x <= 1  
+
+Colin's linear program:  
+A <= 10(x) + 10(1-x)  Rose @ r1  
+A <= 5(x) + 0(1-x)    Rose @ r2  
+x >= 0  
+x <= 1  
+
+Solving geometrically says Rose should go entirely with the r1 strategy, gauranteeing her a result of 10
+```{r}
+x <- seq(-100,100, 1)
+roseAtColin1 <- function(x){(10*x)+ (5*(1-x))}
+roseAtColin2 <- function(x){(10*x)+ (0*(1-x))}
+
+curve(roseAtColin1, from = 0, to = 1, type="l", col="red")
+par(new=T)
+curve(roseAtColin2, from = 0, to = 1, type="l", col="blue", add = TRUE)
+par(new=F)
+```
+A <= 10(x) + 5(1-x)   Colin @ c1  
+A <= 10(x) + 0(1-x)   Colin @ c2  
+
+Solving algebraically:  
+10(x) + 5(1-x) = 10(x)
+5(1-x) = 0
+x = 1
+A = 10
+
+Colin's linear program:  
+A <= 10(x) + 10(1-x)  Rose @ r1  
+A <= 5(x) + 0(1-x)    Rose @ r2  
+x >= 0  
+x <= 1  
+
+Solving geometrically says Colin will receive 10 points no matter what
+```{r}
+x <- seq(-100,100, 1)
+colinAtRose1 <- function(x){(10*x)+ (10*(1-x))}
+colinAtRose2 <- function(x){(5*x)+ (0*(1-x))}
+
+curve(colinAtRose1, from = 0, to = 1, type="l", col="red")
+par(new=T)
+curve(colinAtRose2, from = 0, to = 1, type="l", col="blue", add = TRUE)
+par(new=F)
+```
+Solving algebraically:  
+A <= 10(x) + 10(1-x)  Rose @ r1  
+A <= 5(x) + 0(1-x)    Rose @ r2  
+10(x) + (10(1-x)) = 5(x)  
+10(1-x) = -5(x)  
+1-x = -1/2*x  
+1 = 1/2x  
+x=2  
+
+This isn't feasible, but feasible points:  
+x = 1, A = 10  
+x = 0, A = 10  
+So, doesn't matter what Colin chooses; since Rose is going to choose r1, Colin will always get 10
+
+###Page 413: 3  SOLVE
+We are considering three alternatives A, B, or C or a mix of the three alternatives under uncertain conditions of the economy. The payoff matrix is as follows. Set up and solve both the investor’s and the economy’s game.  
+
+.................Conditions   
+.................Cond1  Cond2  Cond3  Cond4   
+Choices A........1100...900.....400....300 \newline
+........B........850...1500.....1000...500 \newline
+........C........700...1200.....500....900  \newline  
+        
+Investors game:
+V <= 1100(x1) + 850(x2) + 700(1-x1-x2)
+V <= 900(x1) + 1500(x2) + 1200(1-x1-x2)
+V <= 400(x1) + 1000(x2) + 500(1-x1-x2)
+(1-x1-x2) >= 0
+(1-x1-x2) <= 1
+
+Economy's game:
+V <= 1100(y1) + 900(y2) + 400(y3) + 300(1-y1+y2+y3)
+V <= 850(y1) + 1500(y2) + 1000(y3) + 500(1-y1+y2+y3)
+V <= 700(y1) + 1200(y2) + 500(y3) + 900(1-y1+y2+y3)
+(1-y1+y2+y3) >=0
+(1-y1+y2+y3) <= 1
+     
+####Page 420: #1
+In the following problems, use the maximin and minimax method and the movement diagram to determine if any pure strategy solutions exist. Assume the row player is maximizing his payoffs which are shown in the matrices below.  
+
+            Colin  
+            C1   C2  
+Rose   r1   10   10  
+       r2   5    0  
+       
+Rose's maximin value = 10
+Rose's minimax value = 10
+So we have a saddle point at Rose plays r1, Colin plays c1
+
+Using a movement diagram, the column arrows would point up and the row columns would point to the left, so so at r1/c1 we have an equilibrium. 
+
+####Page 428: #3
+Use the alternative methods (a) equating expected value and (b) methods of oddments to find the solution to the following games. Assume the row player is maximizing his payoffs which are shown in the matrices below.
+............Colin  
+.............C1..C2  
+Rose...r1....5....3  
+.......r2....6....1  
+
+This matrix has a saddle point at .6!
+
+####Page 440: 2
+Use movement diagrams to find all the stable outcomes in Problems 1 through 5. Then use
+strategic moves (using Table 10.2 ) to determine if Rose can get a better outcome.
+
+............Colin  
+.............C1....C2  
+Rose...r1...(1,2)..(3,1)  
+.......r2...(2,4)..(4,3)  
+       
+The movement diagram here would point to (2,4) for Colin. 
+
+First moves: 
+Should rose move first:
+If Rose does R1, Colin does c1. Implies outcome (1,2)
+If Rose does R2, Colin does C1, implies (2,4)
+So Rose should choose outcome (2,4), no improvement
+
+Should Rose force Colin to move first:
+If Colin does C1, then rose does r2, implies (2,4)
+If Colin does C2, then rose does r2, implies (4,3)
+So Colin would choose C1, no improvement
+
+Threats:
+If Rose wants Colin to play C2: 
+If Colin does C1 and Rose hurts hersef, then Rose does R1, implying (1,2). Yet this is still preferable to Colin over r1/c2 (3,1), so it's an ineffective threat. 
+
+Promises: 
+If Rose wants Colin to play C2:
+If Colin does C2 and Rose hurts herself, Rose does r1, with outcome (3,1). This is Colin's worst result, and gives him no incentive to play C2. 
+
+####Page 454: #3
+
+............ Kill Probability  
+............Long.....Middle..Close    
+Clanton......5.......6......1.0  
+Holliday.....3.......8......1.0
+
+Payoff to doc is 10 units if he survives and ike is killed. -10 units if Doc is killed and Ike survives. Doc and Ike's strategies are as follows: 
+
+L   Blast at long range
+M   If enemy has not shot, blast at middle range; otherwise, blast at close range
+C   Blast enemy at close range
+
+Chance of killing other (*10) matrix:
+..............Clanton  
+..............Long...Middle..Close    
+..........L...(3, 5).(3, 7)..(3, 7) 
+Holliday..M...(5, 5).(8, 6)..(8, 2)      
+..........C...(5, 5).(4, 6)..(4, 6)
+          
+Holliday reward matrix:
+..............Long...Middle...Close    
+..........L....-2...-4........-4 
+Holliday..M....0.....2.........6      
+..........C....0....-2........-2
+
+So Holliday goes middle

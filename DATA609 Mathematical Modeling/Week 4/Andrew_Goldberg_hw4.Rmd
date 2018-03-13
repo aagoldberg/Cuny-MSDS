@@ -1,0 +1,220 @@
+---
+title: "609_HW3_Andrew_Goldberg"
+author: "Andrew Goldberg"
+date: "2/24/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+```{r Page 191: #3}
+#Using Monte Carlo simulation, write an algorithm to calculate an approximation to pi #by considering the number of random points selected inside the quarter circle
+#Q : x^2 + y^2 = 1, x>=0, y>=0
+#where the quarter circle is taken to be inside the square
+#S : 0 <=x <= 1 and 0<=y <= 1
+#Use the equation pi/4 = area Q/area S
+
+#First I will use a monte carlo simulation to approximate the areas of Q and S.
+
+q1Func <- function(n) {
+  simNum <- n
+simCount <- 0
+ranYvect <- rep(NA,simNum)
+ranXvect <- rep(NA,simNum)
+simYvect <- rep(NA,simNum)
+
+while (simNum > 0){
+  randY <- runif(1)
+  ranYvect[simNum] <- randY
+  
+  randX <- runif(1)
+  ranXvect[simNum] <- randX
+  
+  simY <- sqrt(1-(randX^2))
+  simYvect[(simNum)] <- simY
+  if (randY <= simY){
+    simCount = simCount + 1
+  }
+  simNum <- simNum - 1
+}
+areaQ <- simCount
+simPi <- (areaQ/n)*4
+return(simPi)
+}
+q1Func(100000)
+
+plot(ranYvect ~ ranXvect)
+```
+
+```{r Page 194: #1}
+#Use the middle-square method to generate:
+
+q2Func <- function(n,seed4, problem) {
+  seed4vect <- vector()
+  seed4vect[0] <- seed4
+  
+  for(i in 1:n){
+    seed4Sq <- as.numeric(seed4)^2
+    ifelse(problem %in% c("a", "c"), seed4Sq8 <- sprintf("%08d", seed4Sq), seed4Sq8 <- sprintf("%012e", seed4Sq))
+    #seed4Sq8 <- sprintf("%08d", seed4Sq)
+    ifelse(problem %in% c("a", "c"), seed4 <- substr(seed4Sq8, 3,6), seed4 <- substr(seed4Sq8, 3,9))
+    #seed4 <- substr(seed4Sq8, 3,6)
+    seed4vect[i] <- seed4
+  }
+  return(seed4vect)
+}
+
+#a. n=10, xo = 1009  
+q2Func(10, 1009, "a")
+#this string degenerated quickly!
+
+#b. n=20, xo = 653217
+q2Func(20, 653217, "b")
+
+#c. n=15, xo = 3043  
+q2Func(15, 3043, "c")
+#this quickly devolved into a reptition
+```
+
+```{r Page 199: #4}
+#Given loaded dice according to the following distribution, use Monte Carlo simulation to simulate the sum of 300 rolls of two unfair dice. 
+roll <- c(1,2,3,4,5,6)
+die1 <- c(.1,.1,.2,.3,.2,.1)
+die2 <- c(.3,.1,.2,.1,.05,.25)
+ 
+#I multiplied the combined probabilities in excel: 
+#P(roll adds to 2): .03 (ie .1*.3)
+#3: .04
+#4: .09
+#5: .14
+#6: .145
+#7: .16
+#8: .115
+#9: .105
+#10:.095
+#11:.055
+#12:.025
+
+q3func <- function(nrolls){
+  
+  dieRes <- rep(0,11)
+  
+  rand <- runif(nrolls)
+  #set cumulative probability net
+  for(i in rand){
+    if(between(i, 0, .03)){dieRes[1] = dieRes[1]+1}
+    if(between(i, .03, .07)){dieRes[2] = dieRes[2]+1}
+    if(between(i, .07, .16)){dieRes[3] = dieRes[3]+1}
+    if(between(i, .16, .3)){dieRes[4] = dieRes[4]+1}
+    if(between(i, .3, .445)){dieRes[5] = dieRes[5]+1}
+    if(between(i, .445, .605)){dieRes[6] = dieRes[6]+1}
+    if(between(i, .605, .72)){dieRes[7] = dieRes[7]+1}
+    if(between(i, .72, .825)){dieRes[8] = dieRes[8]+1}
+    if(between(i, .825, .92)){dieRes[9] = dieRes[9]+1}
+    if(between(i, .92, .975)){dieRes[10] = dieRes[10]+1}
+    if(between(i, .975, 1)){dieRes[11] = dieRes[11]+1}
+  }
+  combinedDieValues <- c(2,3,4,5,6,7,8,9,10,11,12)
+  expectedResults <- c(.03, .04, .09, .14, .145, .16, .115, .105, .095, .055, .025)
+  simulationCounts <- dieRes
+  simulationPercents <- dieRes/nrolls
+  q3Results <- data.frame(combinedDieValues, expectedResults, simulationPercents, simulationCounts)
+  return(q3Results)
+}
+
+q3func(5000)
+
+```
+
+```{r Page 211: #3}
+#Construct a monte carlo simulation of the order lag times
+
+lagTime <- c(2,3,4,5,6,7)
+numOccur <- c(10,25,30,20,13,2)
+perOccur <- numOccur/sum(numOccur)
+cumOccur <- cumsum(perOccur)
+
+q4func <- function(nSim){
+  
+  lagRes <- rep(0,6)
+  rand <- runif(nSim)
+  
+  for(i in rand){
+    if(between(i, 0, cumOccur[1])){lagRes[1] = lagRes[1]+1}
+    if(between(i, cumOccur[1], cumOccur[2])){lagRes[2] = lagRes[2]+1}
+    if(between(i, cumOccur[2], cumOccur[3])){lagRes[3] = lagRes[3]+1}
+    if(between(i, cumOccur[3], cumOccur[4])){lagRes[4] = lagRes[4]+1}
+    if(between(i, cumOccur[4], cumOccur[5])){lagRes[5] = lagRes[5]+1}
+    if(between(i, cumOccur[5], cumOccur[6])){lagRes[6] = lagRes[6]+1}
+  }
+  expectedResults <- perOccur
+  simulationCounts <- lagRes
+  simulationPercents <- lagRes/nSim
+  q4Results <- data.frame(lagTime, expectedResults, simulationPercents, simulationCounts)
+  return(q4Results)
+}
+
+q4func(1000)
+```
+
+```{r Page 221: #2}
+#Use a smooth polynomial to fit the data in Table 5.18 to obtain arrivals and unloading times. Compare results to those in Tables 5.19 and 5.20. 
+
+#---------part a: arrivals
+#given "time between arrivals" is a range, I'll use the mean of each interval here
+betwArriv <- c(19.5, 29.5, 39.5, 49.5, 59.5, 69.5, 79.5, 89.5, 99.5, 109.5, 119.5, 129.5, 140)
+probOccArriv <- c(.009, .029, .035, .051, .090, .161, .2, .172, .125, .071, .037, .017, .003)
+
+#this data won't usefully fit a polynomial that I'm aware about, unless its cut above and below the the 75-84 min mark
+plot(probOccArriv, betwArriv)
+
+#it appears that we're interested in cumulative times, so...
+cumProbArriv <- cumsum(probOccArriv)
+plot(cumProbArriv, betwArriv) #much better, looks similar to basic 3rd order, except for hard turns of ending tails
+
+#fitting to a smooth, lower order polynomial
+q5Arriv <- data.frame(probOccArriv, betwArriv, cumProbArriv)
+gA <- ggplot(q5Arriv, aes(cumProbArriv, betwArriv))
+
+par(mfrow = c(3,1))
+gA + stat_smooth(method="lm", formula = y~poly(x,3)) + geom_point()
+gA + stat_smooth(method="lm", formula = y~poly(x,4)) + geom_point()
+gA + stat_smooth(method="lm", formula = y~poly(x,5)) + geom_point()
+#4th order is visually the best fit
+
+fit4a <- lm(formula = betwArriv ~ poly(cumProbArriv, 4, raw = TRUE)) #summary(fit4a) #adj r squared: .9845
+fit5a <- lm(formula = betwArriv ~ poly(cumProbArriv, 5, raw = TRUE)) #summary(fit5a) #adj r squared: .9917
+#5th order poly is stronger statistical fit, but the model looks overfit visually
+
+#-----------part b: unloading
+unloadTime <- c(47.5, 52, 57.5, 62, 67.5, 72, 77.5, 82, 87.5)
+probOccUnload <- c(.017, .045, .095, .086, .130, .185, .208, .143, .091)
+cumProbUnload <- cumsum(probOccUnload)
+plot(cumProbUnload, unloadTime) #lows like a basic 3rd order..
+
+q5Unload <- data.frame(unloadTime, cumProbUnload)
+gU <- ggplot(q5Unload, aes(cumProbUnload, unloadTime))
+
+par(mfrow = c(3,1))
+gU + stat_smooth(method="lm", formula = y~poly(x,3)) + geom_point()
+gU + stat_smooth(method="lm", formula = y~poly(x,4)) + geom_point()
+
+fit3u <- lm(formula = unloadTime ~ poly(cumProbUnload, 3, raw = TRUE)) #summary(fit3u) #adj r squared: .9989
+fit4u <- lm(formula = unloadTime ~ poly(cumProbUnload, 4, raw = TRUE)) #summary(fit4u) #adj r squared: .9987
+
+#3rd order poly appears to be both a stronger statistical and visual fit
+```
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

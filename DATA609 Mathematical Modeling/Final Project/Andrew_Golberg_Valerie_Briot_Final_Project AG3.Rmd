@@ -1,0 +1,879 @@
+---
+title: "CUNY 609 - Final project"
+author: "Andrew Golberg, Valerie Briot"
+date: "May 21, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r library, results='asis', echo=FALSE, include=FALSE}
+library(grid)
+library(ggplot2)
+library(deSolve)
+```
+#1.	Chapter 1, Solutions to Dynamical Systems, project 4 (page 36):  
+
+Mercury in Fish: Public officials are worried about the elevated levels of toxic mercury pollution in the reservoirs that provide the drinking water to your city. They have asked for your assistance in analyzing the severity of the problem. Scientists have known about the adverse affects of mercury on the health of humans for more than a century. The term mad as a hatter stems from the nineteenth-century use of mercuric nitrate in the making of felt hats. Human activities are responsible for most mercury emitted into the environment. For example, mercury, a by-product of coal, comes from the smokestack emissions of old, coal- red power plants in the Midwest and South and is disseminated by acid rain. Its particles rise on the smokestack plumes and hitch a ride on prevailing winds, which often blow northeast. After colliding with mountains, the particles drop to earth. Once in the ecosystem, microorganisms in the soil and reservoir sediment break down the mercury and produce a very toxic chemical known as methyl mercury. Mercury undergoes a process known as bioaccumulation. This occurs when organisms take in contaminants more rapidly than their bodies can eliminate them. Therefore, the amount of mercury in their bodies accumulates over time. Humans can eliminate mercury from their system at a rate proportional to the amount remaining. Methyl mercury decays 50% every 65 to 75 days (known as the half-life of mercury) if no further mercury is ingested during that time. Officials in your city have collected and tested 2425 samples of largemouth bass from the reservoirs and provided the following data. All fish were contaminated. The mean value of the methyl mercury in the fish samples was 0.43 $\mu$g (microgram) per gram. The average weight of the fish was 0.817 kg. 
+  
+a.	Assume the average adult person (70 kg) eats one fish (0.817 kg) per day. Construct a difference equation to model the accumulation of methyl mercury in the average adult. Assume the half-life is approximately 70 days. Use your model to determine the maximum amount of methyl mercury that the average adult human will accumulate in her or his lifetime.
+
+(First, the question states that Methy mercury decays at 50% "if no further mercury is ingest during that time". Since the average adult person will be ingesting a fish per day, the question provides flawed information, but ok...)
+
+###Formula formation
+Half-life of Mercury (M) over 70 days:
+$$\ M(t) = M_{o}e^{-kt}$$
+$$M(70) = M_{o}e^{-k70} = \frac{M_{o}}{2}$$
+$$e^{-70k} = \frac{1}{2}$$
+
+$$-70k = ln(\frac{1}{2})$$
+$$k = \frac{ln\frac{1}{2}}{-70} = .0099 = .01$$
+
+So the formula made flexible for time:
+$$(e^{-t\frac{ln.5}{-70}})$$
+
+  
+Humans eliminate mercury at rate proportional to amount remaining:
+$(1-\frac{a_{n}}{70})$
+  
+Average adult person (70 kg or 70000 grams) eats one fish (0.817 kg or 817 grams) per day:  
+  
+Fish weight in grams = $f_{w}$  
+Mercury level = $m$    
+New mercury added per day:
+$f_{w}m$  
+  
+Final formula:
+$$a_{n+1}=a_{n}e^{-n\frac{ln.5}{-70}}(1-\frac{a_{n}}{70000})+(f_{w}m)$$
+
+###Calculations
+```{r}
+#formula above
+fish_mercury <- function(a){  
+  a*((exp(1))^(-1*((log(.5))/-70)))*(1-(a/70000))+(((.817*1000)*.43))
+}
+
+#iterating through formula
+life_mercury_levels <- function(days, starting_level){
+  merc <- c(1:days+1)
+  merc[1] <- fish_mercury(0)
+  day <- c(0:days)
+  for (i in 2:(days+1)){
+    merc[i] <- fish_mercury(merc[i-1])
+  }
+  return(cbind(day, merc))
+}
+
+```
+
+Mercury maxes out at 4647 grams  
+
+```{r}
+life_merc <- life_mercury_levels(70, 0)
+colnames(life_merc) <- c("days", "mercury level")
+knitr::kable(life_merc[60:71,] , format="markdown")
+```
+
+Mercury levels off quickly after 20 days  
+
+```{r}
+plot(life_merc[,1], life_merc[,2], xlab = "Days", ylab = "Mercury in body", main = "Accumulation of mercury with daily fish intake")
+```
+
+b.	You find out that there is a lethal limit to the amount of mercury in the body; it is 50 mg/kg. What is the maximum number of fish per month that can be eaten without exceeding this lethal limit?
+
+###Formula Formation: Half-life
+Adjusting each portion of the formula for a 30 day period requires multiplying daily mercury intake per fish by a new variable denoting how many fish $d$ digested per day.:
+
+Daily intake of mercury = $df_{w}m$  
+
+Now we can run a simulation of the full formula over a 30 day period for different amounts of daily fish intake:
+$$a_{n+1}=a_{n}e^{-n\frac{ln.5}{-70}}(1-\frac{a_{n}}{70000})+(df_{w}m)$$  
+
+###Calculations
+```{r}
+#formula above
+fish_mercury <- function(a, d){
+  a*((exp(1))^(-1*((log(.5))/-70)))*(1-(a/70000))+((d)*(((.817*1000)*.43)))
+}
+#iterating through for different amounts of fish a day
+life_mercury_levels <- function(days, max_daily_fish){
+  totals <- data.frame(matrix(ncol = length(max_daily_fish), nrow = days))
+  for (j in 1:max_daily_fish){
+    fish_iter <- seq(0, j, j/days)
+    totals[1,j] <- fish_mercury(0,(fish_iter[2]))
+    for (i in 2:(days)){
+      totals[i,j] <- fish_mercury((1+totals[i-1,j]), j)
+    }
+  }
+  colnames(totals) <- c(1:max_daily_fish)
+  return(totals)
+}
+```
+**Mercury Accumulation after 30 Days**  
+
+We see the total amount of mercury in the system after 30 days, to reach the fatal 50k grams, would require 103 fish/month   
+
+```{r}
+max_30 <- life_mercury_levels(30, 105)
+knitr::kable(max_30[28:30,101:103], format = "markdown")
+plot((1:ncol(max_30)), max_30[30,], xlab = "Daily fish intake", ylab = "Grams of mercury left in body", main = "Mercury in body by daily fish intake")
+```
+
+**Monthly Mercury Accumulation**  
+However, if we look at the relative mercury levels per day, we see a quick spike maxing out on the third day, then a resettling decrease on the fourth day.  
+
+```{r}
+knitr::kable(max_30[1:4,101:103], format = "markdown")
+plot((1:nrow(max_30)), max_30[,100], xlab = "Day", ylab = "Grams of mercury left in body", main = "Mercury in body daily")
+```
+
+**Mercury Accumulation on 3rd Day**  
+```{r}
+knitr::kable(max_30[1:4,90:97], format = "markdown")
+plot((1:ncol(max_30)), max_30[3,], xlab = "Daily fish intake", ylab = "Grams of mercury left in body", main = "Mercury in body by daily fish intake")
+abline(h=50000)
+```
+
+
+*** 
+#The Spread of a Contagious Disease (problem 5 page 499)
+
+Consider the following ordinary differential equation model for the spread of a communicable disease:
+$\frac { dN }{ dt } =.25N(10-N),\quad N(0)=2$  
+
+where N is measured in 100's. Analyze the behavior of this differential equation as follows:  
+
+a) Since this is an autonomous differential equation, perform a qualitative graphical analysis as discussed in Section 11.4. 
+	(i)  Plot dN/dt versus N. Find and label all rest points (equilibrium points).  
+	
+  (ii)  Estimate the value where the rate of change of the disease is the fastest. Justify your answer.  
+
+
+	(iii)  Plot N versus t for each of the following initial conditions:
+		     N(0)=2, N(0)=7, and N(0)=14  
+		     
+	(iv)  Describe the stability of each rest point (equilibrium point).
+	
+	
+b)	Obtain a slope field plot of this differential equation. Briefly analyze the slope field plot. 
+    Compare it to your qualitative plot in part (a) above.
+    
+c)	Solve this differential equation using the separation of variables technique.  
+    Plot the solution over the interval of time from [0, 10].
+    How does your actual solution compare to the qualitative graphical solution?
+    
+d)	Compute the time t when N is changing the fastest using the initial condition N(0) = 2.  
+    Compare your answer to your qualitative estimate in part a(iii) above.
+    
+e)	Use Euler's Method with step sizes of h=1 and then h=0.1 to approximate the solution to the differential equation for N(0.5) and N(5).  
+    Find the relative error at these values. Obtain graphical plots of the numerical solution.  
+    How do they compare to the plots of the actual solution?  
+    
+f)	Repeat part(e)using either the Improved Euler's Method or the Runge-Kutta Method. 
+
+***
+
+## a. Graphical Analysis:
+
+###(i) Plot dN/dt vs N
+
+We will first plot dN/dt versus N, for some value of N. Equilibrium (or rest point) are all the values of N for which dN/dt = 0.  We will find these by setting the equation to Zero.  
+
+$\frac { dN }{ dt } =.25N(10-N)=0$  
+
+This will hold true when N=0 or 10-N = 0, hence we have possible values of N that satisfy the equation to be N=0 or N=10.  
+
+We will first construct a phase line for the equation by ploting the equilibrium value on the y axis and analysis the intervals where $\frac { dN }{ dt }$ and $\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } }$ are positive and negative.  
+
+We will first derive $\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } }$ by differentiating N' with respect to t using implicit differentiation.  
+
+$N'\quad =\quad \frac { 1 }{ 4 } N(10-N)\quad \Leftrightarrow \quad N'\quad =\quad \frac { 5 }{ 2 } N\quad -\quad \frac { 1 }{ 4 } { N }^{ 2 }$  
+
+Differentiating on each side, we get:  
+
+$N''\quad =\quad \frac { d }{ dt } (\frac { 5 }{ 2 } N\quad -\quad \frac { 1 }{ 4 } { N }^{ 2 })\quad \Leftrightarrow \quad \frac { 5 }{ 2 } N'\quad -\quad \frac { 1 }{ 4 } (2N.N')\quad \Leftrightarrow \quad \frac { 1 }{ 2 } (5-N)N'$  
+
+Substituting dN/dt for N', we get:  
+
+$N''\quad =\quad \frac { 1 }{ 2 } (5-N)\cdot \frac { 1 }{ 4 } N(10-N)\quad \Leftrightarrow \quad \frac { 1 }{ 8 } N(5-N)(10-N)$  
+
+We will now analyse the sign (positive/negative) for $\frac { dN }{ dt }$ and $\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } }$   
+
+ |                                            | '< 0' | $0<N<5$ |  $5<N<10$  | $N>10$ |       
+ |--------------------------------------------|:-----:|:-------:|:----------:|:------:|       
+ | N                                          | -     | +       | +          | +      |      
+ | 10-N                                       | +     | +       | +          | -      |          
+ | 5-N                                        | +     | +       | -          | -      |           
+ | $\frac { dN }{ dt }$                       | -     | +       | +          | -      |                
+ | $\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } }$ | -     | +       | -          | +      |  
+
+
+![phase line](C:\Users\vbrio\Documents\Cuny\DATA_609\Final Project\final_figure1.png)
+
+**Analysis**  
+
+N=0 and N=10 are equilibrium points. 
+
+The solution curve below line N=0 woud fall away from line N=0, however, since N>0, this is not part of solution curve.
+The solution curve between N=0 and N=10 raise away from N=0 and towards N=10,  
+Finally, the solution curve above N=10 falls towards N=10.  
+
+
+###ii) Fastest rate of change of the disease  
+
+From the phase line analysis, we can see that the solution curve change concavity at N=5.  This will be an inflection point.  
+At this point, the rate of the change of the function will be the higest.
+
+The rate of change correspond to the first derivative (N'),  
+
+Since $\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } }$ goes from positive to negative, 
+this will be a maximum  when its derivative (N''=0).
+
+###iii) From this information we will now plot N versus t  
+
+See figure 2: Solution Curves N(t)  
+
+![Solution Curves N(t)](C:\Users\vbrio\Documents\Cuny\DATA_609\Final Project\final_figure2.jpg)
+
+
+###iv) Stability of equilibrium point(s):  
+
+Once the solution curve has a value near N=10, it tends steadily towards this value, N=10 is a stable equilibrium.
+
+However for N=0, is a trivial solutioln, since we would have no population and no growth.  
+
+***
+
+##b. Slop Field Analysis
+
+We need to express dt in function of slope and dN.  
+
+
+
+```{r Slope Field, warning=FALSE}
+
+N_prime <- function(N){
+  return(0.25*N*(10-N))
+}
+
+
+min_t <- 0
+max_t <- 20
+
+min_N <- 0
+max_N <- 20
+
+len <- 40
+
+t <- seq(min_t, max_t, length.out=len)
+N <- seq(min_N, max_N, length.out=len)       
+
+df1 <- data.frame(expand.grid(t,N)) 
+
+colnames(df1) <- c("t", "N")
+
+h <- 0.25
+
+df1$dNdt <- mapply(N_prime, df1$N)
+
+df1$dt <- sqrt(h/(1+df1$dNdt^2))
+df1$dN <- df1$dt*df1$dNdt
+
+p1<-  ggplot(data=df1, aes(x=t,y=N), environment = environment()) + 
+          geom_point(size = 1) + 
+          geom_segment(aes(xend=t+dt, yend=N+dN), arrow = arrow(length = unit(0.2, "cm"))) + 
+          xlim(min_t,max_t) + 
+          ylim(min_N,max_N) + 
+          geom_hline(yintercept=0, colour='blue') + geom_hline(yintercept=10, colour='blue') + 
+          geom_hline(yintercept=5, colour='darkgrey')
+
+
+p1
+```
+
+**Analysis:**
+
+The slop field illustrate that N=0 is a trivial solution, basically we have no population, no growth.  
+
+For value of N below 5, the slope of the solution curve is sharply positive, with the slope increasing as we get closer the line N=5, then the slope stay positive but decrease in angle to flatten as it approaches N=10. Solution curves being assymtotic to N=10
+
+For value of N greater than 5, the slope is sharply negative for high value and as we approach N=10, the angle of slop flatten out approaching N=10. Solution curves being assymtotic to N=10.
+
+***
+
+##c. Sloving Differential equation
+
+We will solve the differential equation given by:  
+
+$\frac { dN }{ dt } =.25N(10-N),\quad N(0)=2$ 
+
+by separation method.  
+
+We will first isolate the 'N' term with 't' term, giving the following:  
+
+$\frac { dN }{ dt } =\frac { 1 }{ 4 } N(10-N)\quad \Leftrightarrow \quad \frac { dN }{ N(10-N) } =\frac { 1 }{ 4 } dt$  
+
+Using decomposition by part, we have on the left handside fraction can be writen as:  
+
+$\frac { 1 }{ N(10-N) } =\frac { A }{ N } +\frac { B }{ 10-N }$,  
+
+By multiplying by N(10-N) on both side we get:  
+
+$1\quad =\quad A(10-N)\quad +\quad BN\quad \Leftrightarrow \quad 1\quad =\quad 10A\quad +\quad N(B-A)$  
+
+Hence we get: 
+B-A = 0, hence A=B and 10A = 1, therefore A=B=1/10  
+
+Our equation can now be writen as:  
+
+$\frac { 1 }{ 10 } (\frac { dN }{ N } +\frac { dN }{ 10-N } )=\frac { 1 }{ 4 } dt\quad \Leftrightarrow \quad \frac { dN }{ N } +\frac { dN }{ 10-N } =\frac { 5 }{ 2 } dt$  
+
+Integrating on both side we get:  
+
+$\ln { |N| } \quad -\quad \ln { |10-N| } \quad =\quad \frac { 5 }{ 2 } t\quad +\quad C$  
+
+Since N > 0 and we can write: 
+$\ln { N } \quad -\quad \ln { |10-N| } \quad =\quad \frac { 5 }{ 2 } t\quad +\quad C$  
+
+
+For $0<{ N }_{ 0 }<10$, we can determine the constance C as follow:   
+$C=\ln { (\frac { { N }_{ 0 } }{ { 10-N }_{ 0 } }  } )-\frac { 5 }{ 2 } { t }_{ 0 }$  
+
+Substituting C back in equation we get following formula:  
+$\ln { (\frac { N }{ |10-N| } ) } \quad =\quad \frac { 5 }{ 2 } t\quad +\quad (\ln { (\frac { { N }_{ 0 } }{ 10-{ N }_{ 0 } } ) } -\frac { 5 }{ 2 } \cdot { t }_{ 0 })\quad \Leftrightarrow \quad \ln { (\frac { N }{ |10-N| }  } )\quad -\quad (\ln { \frac { { N }_{ 0 } }{ 10-{ N }_{ 0 } }  } )\quad =\quad \frac { 5 }{ 2 } \cdot t\quad -\quad \frac { 5 }{ 2 } \cdot { t }_{ 0 }$  
+
+Simplifying, we obtain:  
+
+$\ln { (\frac { N\cdot (10-{ N }_{ 0 }) }{ { N }_{ 0 }\cdot |10-N| } ) } \quad =\quad \frac { 5 }{ 2 } \cdot (t\quad -\quad { t }_{ 0 })$  
+
+We will now consider solution on interval 0<N<10, hence |10-N|=(10-N), equation1  
+
+$\ln { (\frac { N\cdot (10-{ N }_{ 0 }) }{ { N }_{ 0 }\cdot (10-N) } ) } \quad =\quad \frac { 5 }{ 2 } \cdot (t\quad -\quad { t }_{ 0 })$  
+
+For${ N }_{ 0 }>10$, the constance C would be:  
+
+$C=\ln { (\frac { { N }_{ 0 } }{ { N }_{ 0 }-10 }  } )-\frac { 5 }{ 2 } { t }_{ 0 }$  
+
+Substituting C back in equation we get following formula:  
+$\ln { (\frac { N }{ |10-N| } ) } \quad =\quad \frac { 5 }{ 2 } t\quad +\quad (\ln { (\frac { { N }_{ 0 } }{ { N }_{ 0 }-10 } ) } -\frac { 5 }{ 2 } \cdot { t }_{ 0 })\quad \Leftrightarrow \quad \ln { (\frac { N }{ |10-N| }  } )\quad -\quad (\ln { \frac { { N }_{ 0 } }{ { N }_{ 0 }-10 }  } )\quad =\quad \frac { 5 }{ 2 } \cdot t\quad -\quad \frac { 5 }{ 2 } \cdot { t }_{ 0 }$  
+
+Simplifying, we obtain:  
+$\ln { (\frac { N\cdot ({ N }_{ 0 }-10) }{ { N }_{ 0 }\cdot |10-N| } ) } \quad =\quad \frac { 5 }{ 2 } \cdot (t\quad -\quad { t }_{ 0 })$  
+
+We will now consider solution on interval $N>10$, hence |10-N|=(N-10), equation2 
+
+$\ln { (\frac { N\cdot ({ N }_{ 0 }-10) }{ { N }_{ 0 }\cdot (N-10) } ) } \quad =\quad \frac { 5 }{ 2 } \cdot (t\quad -\quad { t }_{ 0 })$  
+
+Exponentiating on each side this leads to:  
+
+$eq1:\quad \frac { N(10-{ N }_{ 0 }) }{ { N }_{ 0 }(10-N) } ={ e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }\Leftrightarrow \quad N(10-{ N }_{ 0 })\quad =\quad { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }\cdot (10-N)$  
+
+$eq1:\quad N(10-{ N }_{ 0 })\quad =\quad 10\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }-N\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }\quad \Leftrightarrow \quad N(10-{ N }_{ 0 })\quad +\quad N\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }\quad =\quad 10\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }\quad$
+
+which leads to:  
+$eq1:\quad N\cdot ((10-{ N }_{ 0 })\quad +\quad { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) })\quad =\quad 10\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }\quad$  
+
+Finally:  
+$eq1:\quad N(t)\quad =\quad \frac { 10\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) } }{ ((10-{ N }_{ 0 })\quad +\quad { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) }) } \quad$  
+
+Similarly for equation2 we would have:  
+$\quad eq2:\quad N(t)\quad =\quad \frac { -10\cdot { N }_{ 0 }\cdot { e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) } }{ ({ N }_{ 0 }-10)\quad -\quad { N }_{ o }{ \cdot e }^{ \frac { 5 }{ 2 } (t-{ t }_{ 0 }) } }$
+
+We will consider the initial values for N similar to a(i); N(0)=2, N(0)=7, and N(0)=14  we will substitute $quad { t }_{ 0 }$ and $quad { N }_{ 0 }$ by the above value in the appropriate equation.  
+
+
+```{r functions plotting, warning=FALSE}
+
+fun_N2 <- function(tvar) {
+  nom <- 20*exp(5/2*tvar)
+  den <- 8+(2*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+
+fun_N7 <- function(tvar){
+  nom <- 70*exp(5/2*tvar)
+  den <- 3 +(7*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+
+fun_N14 <- function(tvar){
+  nom <- -140*exp(5/2*tvar)
+  den <- 4 -(14*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+
+p2 <- ggplot(data.frame( x = c( 0, 10)), aes( x = x)) + 
+              stat_function( fun = fun_N2, colour = 'red') +
+              stat_function( fun = fun_N7, colour = 'green') +
+              stat_function( fun = fun_N14, colour = 'orange') + 
+              geom_hline(yintercept=0, colour='blue') + 
+              geom_hline(yintercept=10, colour='blue') + 
+              geom_hline(yintercept=5, colour='darkgrey') +  
+              labs(x = 't', fontface = 'bold') + 
+              labs(y = 'N(t)', fontface = 'bold')
+             
+p2
+
+```
+
+The solutions curves, hand drawn in a(iii) are very similar to the graphs obtained by plotting the equations.  
+
+***
+
+##d. Compute the time t when N is changing the fastest using the initial condition N(0) = 2  
+
+Since dN/dt represent the rate of change of N, in order to find at what time t, the rate is the fastest, we need to find the maximum for dN/dt.  
+To do this we will look at what value of t render $\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } } =0$  
+
+From a(i) we know that:   
+$\frac { { d }^{ 2 }N }{ { (dt) }^{ 2 } } =\frac { 1 }{ 8 } N(10-N)(5-N),\quad for\quad 0<N<10$  
+
+This lead to possible solutions:  
+
+N=0, 10-N = 0, or 5-N = 0,  
+
+We will substitute the equation1 (since initial value for N = 2) for N(t). 
+
+$\quad N(t)\quad =\quad \frac { 20\cdot { e }^{ \frac { 5 }{ 2 } t } }{ (8\quad +\quad 2\cdot { e }^{ \frac { 5 }{ 2 } t }) } \quad$  
+
+For N=0, there is no solution for t, since it would mean that:  
+$20\cdot { e }^{ \frac { 5 }{ 2 } t }=0\quad \Leftrightarrow \quad { e }^{ \frac { 5 }{ 2 } t }\quad =\quad 0$, which is not possible.  
+
+For N=10, we would get:  
+$\quad 10\quad =\quad \frac { 20\cdot { e }^{ \frac { 5 }{ 2 } t } }{ (8\quad +\quad 2\cdot { e }^{ \frac { 5 }{ 2 } t }) } \quad \Leftrightarrow \quad 10\cdot (8\quad +\quad 2\cdot { e }^{ \frac { 5 }{ 2 } t })\quad =\quad 20\cdot { e }^{ \frac { 5 }{ 2 } t }\quad \Leftrightarrow \quad 80\quad =\quad 0\quad \quad$  
+again this would not a possible solution.  
+
+Finally, for N=5, we would get:  
+
+$\quad 5\quad =\quad \frac { 20\cdot { e }^{ \frac { 5 }{ 2 } t } }{ (8\quad +\quad 2\cdot { e }^{ \frac { 5 }{ 2 } t }) } \quad \Leftrightarrow \quad 5\cdot (8\quad +\quad 2\cdot { e }^{ \frac { 5 }{ 2 } t })\quad =\quad 20\cdot { e }^{ \frac { 5 }{ 2 } t }\quad \Leftrightarrow \quad 10\cdot { e }^{ \frac { 5 }{ 2 } t }\quad =\quad 40\quad \quad$  
+
+Hence:  
+$\quad { e }^{ \frac { 5 }{ 2 } t }\quad =\quad 4\quad \Leftrightarrow \quad \frac { 5 }{ 2 } \cdot t\quad =\quad \ln { 4 } \quad \Leftrightarrow \quad t=\frac { 2 }{ 5 } \cdot \ln { 4 } \quad$ 
+
+Which is a solution.  We now need to determine whether it is a maximum.  we will calculate for t slightly before and slightly after for dN/dt,  
+we will use the function fun_N2 previously coded.  
+
+```{r fastest change}
+
+t_solution <- 2/5*(log(4))
+
+t1 <- 0.5  
+
+t2 <- 0.6  
+
+dndt <- function(t){
+  return(0.25*fun_N2(t)*(10-fun_N2(t)))
+}
+
+dndt1 <- dndt(t1)
+dndt2 <- dndt(t2)
+dndt_sol <- dndt(t_solution)
+
+
+```
+
+for t1 < t_solution, we have for dN/dt = `r dndt1` and for t2 > t_solution we have for dN/dt = `r dndt2` and at t_solution we have `r dndt_sol`.  
+
+Hence we have a maximum.  The value of t that correspond to the fastest change for N is `r t_solution`.  
+
+Which correspond to the understanding we had from the graphical analysis done in a(ii).  
+
+***  
+
+##e. Euler Method to approximate differential equation  
+
+Given an Ordinary Differential equation of the form: $\frac { dy }{ dx } =g(x,y)$,  
+
+the initial value and step method for approximation for a Ordinary Differential equation can be given by the general formula:  
+
+${ y }_{ i+1 }\quad =\quad { y }_{ i }+\phi h$,  
+where $\phi$ is the slope and h is the step, $\Delta x$.    
+
+For the Euler method, the slope is $\frac { dy }{ dx }$, ie $g(x,y)\quad at\quad ({ x }_{ i },\quad { y }_{ i })$  
+
+Hence, we would have:  
+
+${ y }_{ i+1 }\quad =\quad { y }_{ i }+g({ x }_{ i },{ y }_{ i })\cdot h$  
+
+We will use the R package deSolve to approximate the differential equation. 
+
+### case1: Initial value: N(0.5) and h=1:  
+
+```{r euler case1}
+
+time <- seq(from=0, to=10, by = 1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=0.5)
+
+fun_dN <- function(t, state, parameters){
+  with(
+    as.list(c(state, parameters)),{
+      dN <- c1*N*(c2-N)
+      return(list(dN))
+    }
+  )
+}
+
+out1 <- as.data.frame(euler(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r euler case1 error}
+
+fun_N <- function(tvar, n) {
+  nom <- 10*n*exp(5/2*tvar)
+  den <- (10-n)+(n*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+
+out1$act_N <- mapply(fun_N, out1$time, 0.5)
+
+out1$error <- out1$N-out1$act_N
+
+```
+ 
+```{r euler case1 table, results='asis'}
+knitr::kable(out1)
+```
+
+### case2: Initial value: N(0.5) and h=0.1:  
+
+```{r euler case2}
+
+time <- seq(from=0, to=10, by = 0.1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=0.5)
+
+out2 <- as.data.frame(euler(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r euler case2 error}
+
+out2$act_N <- mapply(fun_N, out2$time, 0.5)
+
+out2$error <- out2$N-out2$act_N
+
+```
+
+We are only going to display the first 10 entries   
+
+```{r euler case2 table, results='asis'}
+knitr::kable(out2[1:10,])
+```
+
+### case3: Initial value: N(5) and h=1:  
+
+```{r euler case3}
+
+time <- seq(from=0, to=10, by = 1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=5)
+
+out3 <- as.data.frame(euler(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r euler case3 error}
+
+out3$act_N <- mapply(fun_N, out3$time, 5)
+
+out3$error <- out3$N-out3$act_N
+
+```
+
+```{r euler case3 table, results='asis'}
+knitr::kable(out3)
+```
+
+### case4: Initial value: N(5) and h=0.1:  
+
+```{r euler case4}
+
+time <- seq(from=0, to=10, by = 0.1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=5)
+
+out4 <- as.data.frame(euler(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r euler case4 error}
+
+out4$act_N <- mapply(fun_N, out4$time, 5)
+
+out4$error <- out4$N-out4$act_N
+
+```
+
+```{r euler case4 table, results='asis'}
+knitr::kable(out4[1:10,])
+```
+
+We will now plot our estimated N value in function of t.  In all the subsequent graphs, the legend is as follows:  
+
+N=0.5, h=1 = 'gold'  
+N=0.5, h=0.1 = 'darkorange'  
+Curve for N=0.5 = 'darkred'  
+
+N=5, h=1 = 'mediumaquamarine'  
+N=5, h=0.1 = 'mediumblue'   
+Curve for N=5 = 'midnightblue'  
+
+```{r euler cases plot}
+
+fun_N5 <- function(tvar) {
+  nom <- 50*exp(5/2*tvar)
+  den <- 5+(5*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+fun_N05 <- function(tvar) {
+  nom <- 5*exp(5/2*tvar)
+  den <- 9.5+(0.5*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+
+p3 <- ggplot(data.frame( x = c( 0, 10)), aes( x = x)) + 
+              stat_function( fun = fun_N05, colour = 'darkred') +
+              stat_function( fun = fun_N5, colour = 'midnightblue') +
+              geom_line(data=out1, aes(x=out1$time, y=out1$N), colour='gold') + 
+              geom_line(data=out2, aes(x=out2$time, y=out2$N), colour='darkorange') + 
+              geom_line(data=out3, aes(x=out3$time, y=out3$N), colour='mediumaquamarine') + 
+              geom_line(data=out4, aes(x=out4$time, y=out4$N), colour='mediumblue') +
+              labs(x = 't', fontface = 'bold') + 
+              labs(y = 'N(t)', fontface = 'bold')
+p3
+
+```
+
+For a small value of h, (small increment of t), the Euler approximations compare well with the actual curves.  However for larger value of h, h=1, the approximation is not able to handle, the handle the approach to N=10.  The approximation is oscillating around this value without seemingly able to converge.  
+
+We will now plot the relative errors for each data set and keep to the same color scheme for easier identification.    
+
+```{r euler relative errors}
+
+p5 <- ggplot(data=out1, aes(x=out1$time, y=out1$error)) + geom_point(color='gold') + 
+      geom_point(data=out2, aes(x=out2$time, y=out2$error), color='darkorange') +
+      geom_point(data=out3, aes(x=out3$time, y=out3$error), color='mediumaquamarine') + 
+      geom_point(data=out4, aes(x=out4$time, y=out4$error), color='mediumblue')+
+      labs(x = 't', fontface = 'bold') + 
+      labs(y = 'Relative Errors', fontface = 'bold')
+
+p5
+```
+
+The values of errors far away from Error = 0, are when h=1, for h=0.1, the approximation gets better as N approaches 10.  
+
+***  
+
+##d. Runge-Kutta 4th order Method to approximate differential equation  
+
+
+In this method, the slope.h is define as: 
+
+$\phi \cdot h=\frac { { K }_{ 1 }+2{ K }_{ 2 }+2{ K }_{ 3 }+{ K }_{ 4 } }{ 6 } \quad where\quad { K }_{ 1 },\quad { { K }_{ 2 } },\quad { K }_{ 3 },\quad and\quad { K }_{ 4 }\quad are\quad as\quad follows:$  
+
+${ K }_{ 1 }=g({ x }_{ n },\quad { y }_{ n })\cdot h$  
+${ K }_{ 2 }=g({ x }_{ n }+h/2,\quad { y }_{ n }+{ K }_{ 1 }/2)\cdot h$  
+${ K }_{ 3 }=g({ x }_{ n }+h/2,\quad { y }_{ n }+{ K }_{ 2 }/2)\cdot h$  
+${ K }_{ 4 }=g({ x }_{ n }+h,\quad { y }_{ n }+{ K }_{ 3 })\cdot h$  
+
+Graphically, it is represented as follows:  
+
+![Runge-Kutta 4th Order](C:\Users\vbrio\Documents\Cuny\DATA_609\Final Project\final_figure3.png)
+
+We will use the package deSolve to perform the calculation.  
+
+### case1: Initial value: N(0.5) and h=1:  
+
+```{r RK4 case1}
+
+time <- seq(from=0, to=10, by = 1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=0.5)
+
+fun_dN <- function(t, state, parameters){
+  with(
+    as.list(c(state, parameters)),{
+      dN <- c1*N*(c2-N)
+      return(list(dN))
+    }
+  )
+}
+
+out1_rk4 <- as.data.frame(rk4(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r rk4 case1 error}
+
+out1_rk4$act_N <- mapply(fun_N, out1_rk4$time, 0.5)
+
+out1_rk4$error <- out1_rk4$N-out1_rk4$act_N
+
+```
+ 
+```{r RK4 case1 table, results='asis'}
+knitr::kable(out1_rk4)
+```
+
+### case2: Initial value: N(0.5) and h=0.1:  
+
+```{r rk4 case2}
+
+time <- seq(from=0, to=10, by = 0.1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=0.5)
+
+out2_rk4 <- as.data.frame(rk4(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r rk4 case2 error}
+
+out2_rk4$act_N <- mapply(fun_N, out2_rk4$time, 0.5)
+
+out2_rk4$error <- out2_rk4$N-out2_rk4$act_N
+
+```
+
+```{r RK4 case2 table, results='asis'}
+knitr::kable(out2_rk4[1:10,])
+```
+
+### case3: Initial value: N(5) and h=1:  
+
+```{r RK4 case3}
+
+time <- seq(from=0, to=10, by = 1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=5)
+
+out3_rk4 <- as.data.frame(rk4(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r RK4 case3 error}
+
+out3_rk4$act_N <- mapply(fun_N, out3_rk4$time, 5)
+
+out3_rk4$error <- out3_rk4$N-out3_rk4$act_N
+
+```
+
+```{r RK4 case3 table, results='asis'}
+knitr::kable(out3_rk4)
+```
+
+### case4: Initial value: N(5) and h=0.1:  
+
+```{r RK4 case4}
+
+time <- seq(from=0, to=10, by = 0.1)
+
+parameters <- c(c1=0.25, c2=10)
+
+state <- c(N=5)
+
+out4_rk4 <- as.data.frame(rk4(y = state, times = time, func = fun_dN, parms=parameters))
+
+```
+
+To calculate the relative error, we will calculate the actual value of function and then take difference (estimate - actual) 
+
+```{r rk4 case4 error}
+
+out4_rk4$act_N <- mapply(fun_N, out4_rk4$time, 5)
+
+out4_rk4$error <- out4_rk4$N-out4_rk4$act_N
+
+```
+
+```{r RK4 case4 table, results='asis'}
+knitr::kable(out4_rk4[1:10,])
+```
+
+We will now plot our estimated N value in function of t.  
+
+```{r RK4 cases plot}
+
+fun_N5 <- function(tvar) {
+  nom <- 50*exp(5/2*tvar)
+  den <- 5+(5*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+fun_N05 <- function(tvar) {
+  nom <- 5*exp(5/2*tvar)
+  den <- 9.5+(0.5*exp(5/2*tvar))
+  res <- nom/den
+  return(res)
+}
+
+p4 <- ggplot(data.frame( x = c( 0, 10)), aes( x = x)) + 
+              stat_function( fun = fun_N05, colour = 'darkred') +
+              stat_function( fun = fun_N5, colour = 'midnightblue') +
+              geom_line(data=out1_rk4, aes(x=out1_rk4$time, y=out1_rk4$N), colour='gold') + 
+              geom_line(data=out2_rk4, aes(x=out2_rk4$time, y=out2_rk4$N), colour='darkorange') + 
+              geom_line(data=out3_rk4, aes(x=out3_rk4$time, y=out3_rk4$N), colour='mediumaquamarine') + 
+              geom_line(data=out4_rk4, aes(x=out4_rk4$time, y=out4_rk4$N), colour='mediumblue') +  
+              labs(x = 't', fontface = 'bold') + 
+              labs(y = 'N(t)', fontface = 'bold')
+p4
+```
+  
+Rundle-Kutta 4th Order approximation of the solution curves is far superior to Euler method.  Even for a large h, the curves produced are close to actual although showing segment.  For small value of h, the curves produced by approximation are very close to actual.
+
+We will now plot the relative errors for each data set and keep to the same color scheme for easier identification.    
+
+```{r RK4 relative errors}
+
+p6 <- ggplot(data=out1_rk4, aes(x=out1_rk4$time, y=out1_rk4$error)) + geom_point(color='gold') + 
+      geom_point(data=out2_rk4, aes(x=out2_rk4$time, y=out2_rk4$error), color='darkorange') +
+      geom_point(data=out3_rk4, aes(x=out3_rk4$time, y=out3_rk4$error), color='mediumaquamarine') + 
+      geom_point(data=out4_rk4, aes(x=out4_rk4$time, y=out4_rk4$error), color='mediumblue')+
+      labs(x = 't', fontface = 'bold') + 
+      labs(y = 'Relative Errors', fontface = 'bold')
+
+p6
+```
+
+When h=0.1, the approximation to the curve is a very nice fit with relative error of 0. Even for h=1, (gold and aquamarine) points, the approximation is much better than for Euler method.  
+

@@ -1,0 +1,227 @@
+---
+title: "Andrew_Goldberg_HW6"
+author: "Andrew Goldberg"
+date: "3/8/2017"
+output: pdf_document
+---
+####Page 251: 2
+Nutritional Requirements--A rancher has determined that the minimum weekly nutritional requirements for an average-sized horse include 40 lb of protein, 20lb of carbohydrates, and 45 lb of roughage. These are obtained from the following sources in varying amounts at the prices indicated.   
+
+Formulate a mathematical model to determine how to meet the minimum nutritional requirements at minimum cost.  
+
+(If I'm understanding this correctly, the farmer is actually just trying to minimize cost, not nutritional requirements, unless he's also trying to control for other unspecified factors like labor or maybe fat content in the meat.)  
+
+h = hay  
+o = oats  
+fb = feeding blocks  
+hpc = high-protein concentrate  
+
+Goal 1: .5h + o + 2fb + 6hpc = 40 (protein)  
+Goal 2: .2h + 4o +.5fb + 1hpc = 20 (carbohydrates)  
+Goal 3: 5h + 2o + fb + 2.5hpc = 45 (roughage)  
+Goal 4: minimize 1.8h + 3.5o + .4fb + hpc (= cost)  
+
+If he's truly trying to minimize both nutrition and cost, a mathematical model could be:   
+G1,2,3: denotes the amount by which each goal fails to be satisfied  
+
+Minimize G1+G2+G3+Cost  
+subject to:   
+.5h + o + 2fb + 6hpc >= 40 (protein)  
+.2h + 4o +.5fb + 1hpc >= 20 (carbohydrates)  
+5h + 2o + fb + 2.5hpc >= 45 (roughage)  
+1.8h + 3.5o + .4fb + hpc = cost  
+
+If he's only trying to minimize cost (and not actively trying to provide only minimum dietary needs), a mathematical model could be: 
+
+Minimize 1.8h + 3.5o + .4fb + hpc
+
+subject to:  
+.5h + o + 2fb + 6hpc >= 40 (protein)  
+.2h + 4o +.5fb + 1hpc >= 20 (carbohydrates)  
+5h + 2o + fb + 2.5hpc >= 45 (roughage)
+
+####Page 264 6
+Maximize 10x + 35y  
+subject to:  
+8x + 6y <= 48 (board-feet of lumber)  
+4x + y <= 20 (hours of carpentry)  
+y >= 5 (demand)  
+x,y>=0 (nonnegativity)  
+```{r P264}
+x <- seq(-100,100, 1)
+
+bflFuncY <- function(x){8-((4/3)*x)}
+hocFuncY <- function(x){20-(4*x)}
+demFuncY <- function(x){5 + (0*x)}
+
+curve(bflFuncY, from = 0, to = 10, type="l", col="red")
+par(new=T)
+curve(hocFuncY, from = 0, to = 10, type="l", col="blue", add = TRUE)
+par(new=T)
+curve(demFuncY, from = 0, to = 10, type="l", col="green", add = TRUE)
+par(new=F)
+```
+If I'm reading this correctly, the optimal  extreme point where y >= 5 is  
+8x + 6y <= 48   
+4x + y <= 20  
+y = 8, x = 0  
+Giving an objection function equal to: 10(0) + 35(8) = 280
+
+At y = 5
+4x + 5 = 20, x = 15/4 = 3.75
+10(3.75) + 35(5) = 37.5 + 175 = 212.5
+
+####Page 268: 6
+Resolve earlier question with new methods  
+Maximize 10x + 35y    
+subject to:  
+8x + 6y <= 48 (board-feet of lumber)  
+4x + y <= 20 (hours of carpentry)  
+y >= 5 (demand)  
+x, y >= 0 (nonnegativity)  
+
+Adding slack variables:  
+8x + 6y + z1 = 48  
+4x + y + z2 = 20  
+x,z >= 0  
+y >= 5  
+
+I'm getting a little confused by the addition of the y >= 5 demand constraint, since the examples in the book appear to remove these constant constraints when applying their solutions. So I suppose I'll do one with, and one without the constant constraint. 
+
+Without the y >= 5 demand constraint:  
+1. set x,y = 0   
+z1 = 48    
+z2 = 20 (feasible)   
+...  
+2. set x, z1 = 0
+6y = 48  
+y + z2 = 20  
+y = 8  
+z2 = 12  (feasible)
+...
+3. set x, z2 = 0
+6y + z1 = 48
+y = 20
+z2 = -72 (infeasible)
+
+4. set y, z1 = 0  
+8x = 48  
+4x + z2 = 20
+x = 6
+z2 = -4 (infeasible)
+
+5. set y, z2 = 0
+8x + z1 = 48
+4x = 20
+x = 5
+z1 = 8 (feasible)
+
+6. set z1, z2 = 0
+8x + 6y = 48
+4x + y = 20
+
+y = 20 - 4x   
+8x + 6(20 - 4x) = 48
+8x + 120 -24x = 48
+-16x = -72
+x = 4.5
+y = 2 (feasible)
+
+If we don't include y >=5 as constraint:
+Extreme Point / Value of objective function (10x + 35y)  
+(0,0) / 0  
+(0,8) / 280  
+(5,0) / 50  
+(4.5, 2) / 115  
+
+If we assume y >= 5:
+The only feasible one is y = 8, yielding 280
+
+####Page 278: 6
+Use the simplex method  
+Maximize 10x + 35y    
+subject to:  
+8x + 6y <= 48 (board-feet of lumber)  
+4x + y <= 20 (hours of carpentry)  
+y >= 5 (demand)  
+x, y >= 0 (nonnegativity)  
+
+Step 1: Tableau Format:  
+8x + 6y + z1 = 48  
+4x + y + z2 = 20  
+-10x - 35y + w = 0  
+
+Step 2: Find initial extreme point
+The origin (0,0) is an initial extreme point for which the independent variables x,y = 0 and z1 = 48, z2 = 20, w = 0  
+  
+Step 3: Optimality Test  
+35 > 10, so y enters first  
+  
+Step 4: Feasibility condition for choosing exiting variable:  
+At z1, the ratio is 48/6 = 8  
+At z2, the ratio is 20/1 = 20  
+8 < 20, so z1 is chosen for replacement  
+  
+Step 5: Pivot  
+New dependent variables: y, z2  
+New independent variables: x, z1, w  
+
+Not entirely sure how to do simplex method with y >= 5
+```{r simplex linear algebra}
+coln <- c("x", "y", "z1", "z2", "w", "c")
+r1 <- c(8, 6, 1, 0, 0, 48)
+r2 <- c(4, 1, 0, 1, 0, 20)
+r3 <- c(-10, -35, 0, 0, 1, 0)
+
+q4Tab <- rbind(r1, r2, r3)
+colnames(q4Tab) <- coln
+
+#so r1, y (6) is pivot; 
+q4TabA <- q4Tab
+q4TabA["r1",] <- q4TabA["r1",]/6 #change pivot to 1
+q4TabA["r2",] <- q4TabA["r2",] - q4TabA["r1",] #clean out column under pivot...
+q4TabA["r3",] <- (35*q4TabA["r1",]) + q4TabA["r3",]
+
+
+#now we need to set x pivot to 1;
+q4TabB <- q4TabA
+q4TabB["r2",] <- q4TabB["r2",]/q4TabB["r2", "x"] 
+q4TabB["r1",] <- q4TabB["r1",] - (q4TabB["r1", "x"] * q4TabB["r2",])
+q4TabB["r3",] <- q4TabB["r3",] - (q4TabB["r3", "x"] * q4TabB["r2",])
+q4TabB
+```
+As we got earlier, x = 4.5, y = 2, objective function = 115
+
+####Page 284: 1  
+For the example problem in this section, determine the sensitivity of the optimal solution for a change in c2 using the objective function 25x1 + c2x2.  
+
+Has slope x2/x1 = -25/c2  
+The range of values for which the extreme point remains optimal is given by the inequality:
+
+-5/4 <= -25/c2 <= -2/3 (multiply by 1/25 then simplify...)  
+1/20 <= c2 <= 1/37.5
+
+####Page 295: 3
+Use the curve-fitting criterion to minimize the sum of the absolute deviations for the following models and data set:  
+```{r p295 q3}
+library(deconstructSigs)
+q3x <- c(7,14,31,28,35,42)
+q3y <- c(8,41,133,250,280,297)
+
+#a. y = ax
+funcA <- function(x){abs(8-7*x) + abs(41-14*x) + abs(133-31*x) + abs(250-28*x) + abs(35-280*x) + abs(42-297*x)}
+golden.section.search(funcA, 0, 3, tol = .02)
+plot(funcA)
+
+#b. y = ax^2
+q3b <- q3x^2
+funcB <- function(x){abs(q3y[1]-q3b[1]*x) + abs(q3y[2]-q3b[2]*x) + abs(q3y[3]-q3b[3]*x) + abs(q3y[4]-q3b[4]*x) + abs(q3y[5]-q3b[5]*x) + abs(q3y[6]-q3b[6]*x)}
+golden.section.search(funcB, 0, 3, tol = .02)
+plot(funcB)
+
+#c. y = ax^3
+q3c <- q3x^3
+funcC <- function(x){abs(q3y[1]-q3c[1]*x) + abs(q3y[2]-q3c[2]*x) + abs(q3y[3]-q3c[3]*x) + abs(q3y[4]-q3c[4]*x) + abs(q3y[5]-q3c[5]*x) + abs(q3y[6]-q3c[6]*x)}
+golden.section.search(funcC, 0, 3, tol = .02)
+plot(funcC)
+```

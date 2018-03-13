@@ -1,0 +1,130 @@
+---
+title: "Andrew_Goldberg_HW5"
+author: "Andrew Goldberg"
+date: "3/4/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Page 228: #1}
+#Long term dining behavior of students:
+#25% of students who eat at grease dining hall return to eat again
+#93% of those who eat at sweet dining hall return
+#only two dining halls on campus, model long-term percentage of students eating at each hall
+
+#GreaseN+1 = .7sweet + .25grease
+#SweetN+1 = .93sweet + .75grease
+
+q1Func <- function(total_students, numReps){
+  studentDist <- total_students/2
+  sweet <- vector()
+  grease <- vector()
+  
+  grease[1] <- .07*(studentDist) + .25*(studentDist)
+  greaseFunc <- function(grease, sweet){(.07*sweet) + (.25*grease)}
+  sweet[1] <- .93*(studentDist) + .75*(studentDist)
+  sweetFunc <- function(grease, sweet){(.93*sweet)+(.75*grease)}
+  
+  for(i in 1:numReps){
+    grease[i+1] <- greaseFunc(grease[i], sweet[i])
+    sweet[i+1] <- sweetFunc(grease[i], sweet[i])
+  }
+  cafeterias <- cbind(grease, sweet)
+  return(cafeterias)
+}
+
+q1Func(100, 20)
+```
+
+```{r Page 232: #1}
+#Assumptions: 
+#This is a series and parallel combination system. 
+
+#Reliability cd and radio parallel system:
+cdRadio <- (.98+.97)-(.98*.97)
+#Reliability of speaker 1 and 2 parallel system:
+speakers <- (.99+.99)-(.99^2)
+#Reliability of series of all sub-systems:
+pa <- .95
+totalReliability <- pa*cdRadio*speakers
+totalReliability
+```
+
+```{r Page 240: #1 (p264 pdf)}
+#Predict weight as a function of height from table 2.7
+q3Height <- 60:80
+q3Weight <- c(132, 136, 141, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 201, 206, 212, 218, 223, 229, 234)
+
+plot(q3Height, q3Weight) #Pretty linear
+
+q3fit <- lm(q3Weight~q3Height)
+q3fit$coefficients[1]
+#provide the model, SSE, SSR, SST, and R^2
+summary(q3fit) #shows intercept of -178.5, height coefficient of 5.14, and r-squared of .9988
+
+q3func <- function(height, weight, regressFit){
+  varLength <- length(height)
+  SE <- vector()
+  ST <- vector()
+  
+  for(i in 1:varLength){
+    SE[i] <- (weight[i] - ((regressFit$coefficients[2]*height[i])+regressFit$coefficients[1]))^2
+    ST[i] <- (weight[i] - mean(weight))^2
+  }
+  SSE <- sum(SE)
+  SST <- sum(ST)
+  SSR <- SST - SSE
+  paste("SSE=",round(SSE,2),"SST=",round(SST,2), "SSR=", round(SSR,2))
+  
+}
+
+q3func(q3Height, q3Weight, q3fit)
+
+#or use anova to get same results:
+anova(q3fit) #shows SSE of 24.6
+
+q3fitRes <- resid(q3fit)
+plot(q3Weight ~ q3fitRes)
+plot(q3fit) #clear trend in the residuals, showing that it is not an adequat model
+```
+
+```{r Page 240: #2}
+#Predict weight as a function of height cubed from table 2.7
+q4Height <- 60:80
+q4Weight <- c(132, 136, 141, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 201, 206, 212, 218, 223, 229, 234)
+q4HeightCubed <- q4Height^3
+plot(q4HeightCubed, q4Weight) #Pretty linear
+
+q4fit <- lm(q4Weight~q4HeightCubed)
+q4fit$coefficients[1]
+#provide the model, SSE, SSR, SST, and R^2
+summary(q4fit) #shows intercept of 59.5, height cubed coefficient of 0.0003467, and r-squared of .9979 (just slightly worse)
+
+q4func <- function(height, weight, regressFit){
+  varLength <- length(height)
+  SE <- vector()
+  ST <- vector()
+  
+  for(i in 1:varLength){
+    SE[i] <- (weight[i] - ((regressFit$coefficients[2]*height[i])+regressFit$coefficients[1]))^2
+    ST[i] <- (weight[i] - mean(weight))^2
+  }
+  SSE <- sum(SE)
+  SST <- sum(ST)
+  SSR <- SST - SSE
+  paste("SSE=",round(SSE,2),"SST=",round(SST,2), "SSR=", round(SSR,2))
+  
+}
+
+q4func(q4HeightCubed, q4Weight, q4fit)
+
+#or use anova to get same results:
+anova(q4fit)
+
+q4fitRes <- resid(q4fit)
+plot(q4Weight ~ q4fitRes) #very clear trend in residuals, showing that there is still room to improve the model
+plot(q4fit) 
+```

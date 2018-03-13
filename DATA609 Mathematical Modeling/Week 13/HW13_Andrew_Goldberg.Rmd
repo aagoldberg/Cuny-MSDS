@@ -1,0 +1,91 @@
+---
+title: "HW13_Andrew_Goldberg"
+author: "Andrew Goldberg"
+date: "4/29/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Page 576: 2
+Consider a company that allows backordering. That is,the company notifies customers that a temporary stock-out exists and that their order will be filled shortly. What conditions might argue for such a policy?  
+When delivery or storage costs are too expensive to allow keeping inventory at levels able to handle the days of highest demand. Perhaps there are perishability problems...  
+
+What effect does such a policy have on storage costs?  
+High storage costs may have caused the policy, so I guess it depends on how the company wants to deal with them. If they are comfortable in their model, they probably wouldn't change, but if they decide they need to expand storage, it would cost more overall, although perhaps also enjoy an economy of scale with each unit of storage costing less.   
+
+Should costs be assigned to stock-outs? Why?   
+Presumably there will be a loss of revenue as people will choose not to backorder, a negative impact on the company's image, as well as some extra staffing working needed to handle the stock-outs. Perhaps shipping costs too, if they aren't passed on to the consumer.  
+
+How would you make such an assignment?  
+Perhaps add a component to the cost function with with consumer demand divided by consumer fullfillment, with a constant to regulate it. So if there is more demand than fullfillment, it will add to the cost.   
+
+Or maybe (demand/day - quantity/day)(goodwill costs)  
+
+What assumptions are implied by the model in Figure 13.7?  
+Constant demand, including an expected stockout at the end of every inventory cycle. Lack of buffer stock/inventory.   
+
+Suppose a ‘‘loss of goodwill cost’’ of w dollars per unit per day is assigned to each stock-out. Compute the optimal order quantity Q* and interpret your model.  
+
+The book gives:  
+$$c = \frac{d}{t}+\frac{sq}{2}$$
+adding goodwill costs, g:
+$$c = \frac{d}{t}+\frac{sq}{2}+g(r-\frac{q}{2})$$
+t = q/r, so...
+$$c = \frac{dr}{q} + \frac{sq}{2} + g(r-\frac{q}{2})$$
+$$\frac{dc}{dq} = -\frac{dr}{q^2}+\frac{s}{2}-\frac{g}{2}=0$$
+$$q* = (\frac{2dr}{s-g})^\frac{1}{2}$$
+The optimal order quantity, q*, is the daily delivery costs times the daily demand rate (how much it will cost to delivery the necessary amount) divided by storage costs minus the goodwill factor (the cost of holding more inventory), so this makes some common sense.
+
+## Page 585: 2
+Find the local minimum value of the function:
+$$f(x,y) = 3x^2+6xy+7y^2-2x+4y$$
+$$\frac{\partial f}{\partial x} = 6x + 6y -2 = 0$$
+$$x = -y + \frac{1}{3}$$
+
+$$\frac{\partial f}{\partial y} = 6x + 14y + 4 = 0$$
+$$y = -\frac{3}{7}x-\frac{2}{7}$$
+$$x = \frac{3}{7}x + \frac{2}{7} + \frac{1}{3}$$
+$$\frac{4}{7}x = \frac{13}{21}$$
+$$x = \frac{91}{84}=\frac{13}{12}$$
+$$y = -\frac{39}{84} - \frac{24}{84} = -\frac{63}{84}$$
+Second derivative to verify extreme values...
+$$\frac{\partial^2 f}{\partial x^2} = 6 > 0$$
+$$\frac{\partial^2 f}{\partial y^2} = 14 > 0$$
+The extrema are both positive integers, and therefore relative minima
+
+## Page 591: 5
+Find the hottest point (x,y,z) along the elliptical orbit:
+$$4x^2 + y^2 + 4z^2=16$$
+where the temperature function is
+$$T(x,y,z) = 8x^2 + 4yz - 16z + 600$$
+Model solution using Lagrange multipliers:
+$$L(x,y,z,\lambda) = 8x^2 + 4yz - 16z + 600 + \lambda(4x^2 + y^2 + 4z^2-16)$$
+$$\frac{\partial L}{\partial x} = 16x + \lambda(8x)=0$$
+$$\frac{\partial L}{\partial y} = 4z + \lambda(2y)=0$$
+$$\frac{\partial L}{\partial z} = 4y + \lambda(8z)=0$$
+$$\frac{\partial L}{\partial \lambda} = 4x^2 + y^2 + 4z^2-16=0$$
+```{r}
+theta <- function(th){8*th[1]^2 + 4*th[2]*th[3]-16*th[3]+600 + th[4]*(4*th[1]^2+th[2]^2+4*th[3]^2-16)}
+optim(par=c(0,0,0,0), theta, gr="BFGS", control=list(fnscale=-1))
+
+```
+
+
+## Page 599: 5
+One of the key assumptions underlying the models developed in this section is that the harvest rate equals the growth rate for a sustainable yield. The reproduction submodels in Figures 13.19 and 13.22 suggest that if the current population levels are known, it is possible to estimate the growth rate. The implication of this knowledge is that if a quota for the season is established based on the estimated growth rate, then the fish population can be maintained, increased, or decreased as desired. This quota system might be implemented by requiring all commercial fishermen to register their catch daily and then closing the season when the quota is reached. Discuss the difficulties in determining reproduction models precise enough to be used in this manner.   
+
+Firstly, it would require a very accurate estimation of the amount of fish in the population, as well as a good estimation of the death rate of the population, which in turn would require an accurate model of other biological systems in play (predators/prey/food sources/environmental factors, etc).   
+
+How would you estimate the population level?  
+Perhaps a survey of the amount of fish in one area of the environment, then extrapolate that throughout the full environment. Or possibly model the population based on the yield of last year plus the birth rate minus the death rate.   
+
+What are the disadvantages of having a quota that varies from year to year?  
+Since many firms have sunk costs, such as buying boats and training employees, if the quotas change from year to year, they will often be over or under prepared for the season, which will make the business unpredictable.   
+
+Discuss the practical political difficulties of implementing such a procedure.  
+As the example suggested, if there are people trained to be fisherman, and they reduce the quotas, then there will be many people either out of work or making low wages, lending a greater level of dissatisfaction with government interference in the marketplace. 
