@@ -1,0 +1,18 @@
+{
+    "contents" : "install.packages(\"dplyr\")\nlibrary(dplyr)\nlibrary(ggplot2)\n\ncarlate <- mutate(group_by(hf_depdelay, DepDelay), percent = hf_depdelay$DepDelay / sum(hf_depdelay$DepDelay) * 100) %>% ungroup() \ncarlate\nsum(DepDelay)\n",
+    "created" : 1437842450417.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3781281281",
+    "id" : "92F8612B",
+    "lastKnownWriteTime" : 1437882112,
+    "path" : "C:/Users/Andrew/Desktop/Bridge Courses/R/Final/asdf.R",
+    "project_path" : null,
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

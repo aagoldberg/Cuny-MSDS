@@ -1,0 +1,17 @@
+{
+    "contents" : "#install.packages(\"ggplot2\")\nrequire(ggplot2)\n\n#Inspect data\nhead(quakes)\nstr(quakes)\nsummary(quakes)\n\n#boxplot quake magnitudes: few outliers\nboxplot(quakes$mag)\n\n#histogram of magnitude frequency\nggplot(data = quakes) + geom_histogram(aes(x = mag), bin = .1, fill = 'grey30')\n\n#boxplot quake depths: no outliers, large IQR\nboxplot(quakes$depth)\n\n#histogram with frequency of depth: large IQR due to two different depth curves\nggplot(quakes) + geom_histogram(aes(x = depth), bin = 7, fill = 'grey30')\n\n#boxplot quake stations reporting: large group of outliers...\nboxplot(quakes$stations)\n\n#histogram of stations reporting: most quakes under 50 reports, but long tail of higher counts\nggplot(quakes) + geom_histogram(aes(x = stations), bin = 3, fill = 'grey30')\n\n#scatter plot of quake depth and mag: no clear eye catching conclusions\nggplot(quakes) + geom_point(aes(x = depth, y = mag))\n\n#splitting depth curves to study each...\nlow_depth_quakes <- quakes[which(quakes$depth > 400), ]\nhigh_depth_quakes <- quakes[which(quakes$depth <= 400), ]\n\n#weak pearson correlation between magnitude and second depth curve \ncor(high_depth_quakes$depth, high_depth_quakes$mag)\n\n#nearly 0 pearson correlation between maginitudee and first depth curve\ncor(low_depth_quakes$depth, low_depth_quakes$mag)\n\n#scatter plot of depth by stations reporting: no clear eye catching conclusions\nggplot(quakes) + geom_point(aes(x = depth, y = stations))\n\n#very weak pearson correlation between stations reporting and second depth curve \ncor(high_depth_quakes$depth, high_depth_quakes$stations)\n\n#nearly 0 pearson correlation between stations reporting and first depth curve\ncor(low_depth_quakes$depth, low_depth_quakes$stations)\n\n#scatter plot of magnitude by stations reporting: magnitude appears to affect station reporting\nggplot(quakes) + geom_point(aes(x = mag, y = stations))\n\n#strong positive pearson correlation between magnitude and stations reporting\ncor(quakes$mag,quakes$stations)\n\n#faceted scatter plot of mag by long/lat: lower magnitude quakes are more typically east of mainland\nggplot(quakes) + geom_point(aes(x = long, y = lat, color = mag)) + facet_wrap(~mag)\n\n#bin depth data\nquakes$depthbin9 <- cut_number(quakes$depth, 9)\n\n#faceted scatter plot of depth by long/lat: higher depth quakes are typically east of mainland\nggplot(quakes) + geom_point(aes(x = long, y = lat, color = depthbin9)) + facet_wrap(~depthbin9)",
+    "created" : 1437795705373.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4206599550",
+    "id" : "85243852",
+    "lastKnownWriteTime" : 1437545590,
+    "path" : "C:/Users/Andrew/Desktop/Bridge Courses/R/Week4/R-Week-04-Assignment-AGoldberg.R",
+    "project_path" : "R-Week-04-Assignment-AGoldberg.R",
+    "properties" : {
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "type" : "r_source"
+}

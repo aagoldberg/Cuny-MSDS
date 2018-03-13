@@ -1,0 +1,34 @@
+---
+title: "Week3-R-HW-AGoldberg"
+author: "Andrew Goldberg"
+date: "July 17, 2015"
+output: html_document
+---
+
+The following code retreives the UCI Mushroom Data Set and creates a data.frame, identifying the edibility of a mushroom by its color variants, with column names and full identifiers. 
+
+```{r mushroom-data-retrieval}
+#retrieve and load data into a data.frame 
+#theUrl <- "https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data"
+#mushrooms <- read.table(file = theUrl, header = FALSE, sep = ",")
+head(mushrooms)
+summary(mushrooms)
+
+#Load car package
+require(car)
+
+#create separate vectors and replace codes with full identifiers
+edibility <- as.vector(recode(mushrooms[,1], "'e' = 'edible'; 'p' = 'poisonous'"))
+cap_color <- as.vector(recode(mushrooms[,4], "'n' = 'brown'; 'b' = 'buff'; 'c' = 'cinnamon'; 'g' = 'gray'; 'r' = 'green'; 'p' = 'pink'; 'u' = 'purple'; 'e' = 'red'; 'w' = 'white'; 'y' = 'yellow'"))
+veil_color <- as.vector(recode(mushrooms[,18], "'n' = 'brown'; 'o' = 'orange'; 'w' = 'white'; 'y' = 'yellow'"))
+spore_color <- as.vector(recode(mushrooms[,21], "'k' = 'black'; 'n' = 'brown'; 'b' = 'buff'; 'h' = 'chocolate'; 'r' = 'green'; 'o' = 'orange'; 'u' = 'purple'; 'w' = 'white'; 'y' = 'yellow'"))
+
+#bind vectors into a data.frame
+mushroom_colors <- as.data.frame(cbind(edibility, cap_color, veil_color, spore_color))
+
+#check the data.frame
+class(mushroom_colors)
+
+summary(mushroom_colors)
+```
+

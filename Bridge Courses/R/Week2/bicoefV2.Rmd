@@ -1,0 +1,35 @@
+---
+title: "R-Week02-Assignment"
+author: "Andrew Goldberg"
+date: "July 12, 2015"
+output: html_document
+---
+
+```{r binomial-coefficient, fig.cap="Calculates binomial coefficients"}
+#calculates factorials
+fact_calc <- function(n){
+  x <- 1
+  vect <- as.numeric(vector())
+  for(i in 1:n){
+    x <- x * (i)
+    vect <- append(vect, x)
+  }
+  return(x)
+}
+
+#calculates binomial coefficients
+bi_coef <- function(n, k){
+  if(k < 0 | n < k){
+    return("invalid inputs")
+    }
+  y <- (fact_calc(n) / ((fact_calc(n-k)) * (fact_calc(k))))
+  print(y)
+}
+#legal inputs
+bi_coef(5,3)
+
+#illegal inputs
+bi_coef(3,5)
+```
+
+
