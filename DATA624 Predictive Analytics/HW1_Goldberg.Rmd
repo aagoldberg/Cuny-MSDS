@@ -1,0 +1,758 @@
+---
+output:
+  word_document: default
+---
+Andrew Goldberg
+Data624 Homework
+
+Week 1: 
+---
+title: "Data624 HW1"
+author: "Andrew Goldberg"
+date: "9/7/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Problem 1  
+For each of the following series (from the fma package), make a graph of the data. If transforming seems appropriate, do so and describe the effect.    
+
+#### #1a  
+Monthly total of people on unemployed benefits in Australia (January 1956 July 1992).  
+```{r A}
+library("fma")
+library(e1071)
+head(dole,20)
+
+#First, a general plot
+plot(dole,
+     main="Unemployed benefits in Australia",
+     xlab="Year", ylab="People")
+
+#Seasonal plot: 
+#no obvious seasonal patterns, other than some decline throughout the year with a correction in December
+seasonplot(dole, ylab="People", xlab="Year",
+           main="Season plot: Unemployed benefits in Australia",
+           year.labels=TRUE, year.labels.left=TRUE, col=1:20, pch=19)
+
+#Attempt to smooth months out by days
+monthdays <- rep(c(31,28,31,30,31,30,31,31,30,31,30,31),36)
+monthdays[26 + (4*12)*(0:8)] <- 29
+par(mfrow=c(2,1))
+plot(dole, main="Monthly total of people on unemployed benefits in Australia",
+     ylab="People", xlab="Years")
+plot(dole/monthdays, main="Average total of people on unemployed benefits in Australia per day",
+     ylab="People", xlab="Years")
+
+#Correct for population growth (data from http://www.abs.gov.au/AUSSTATS/abs@.nsf/DetailsPage/3105.0.65.0012014?OpenDocument)
+yearpop <- c(4828846, 4930160,	5026095,	5132363,	5253073,	5374304,	5470040,	5571613,	5682962,	5793629,	5890642,	5992280,	6108185,	6238338,	6364877,	6632838,	6735679,	6835488,	6941940,	7002232,	7065779,	7145407,	7213574,	7293341, 7391427,	7514339,	7633179,	7730415,	7826368,	7940033,	8057320,	8181746,	8325068,	8446656,	8560533,	8659623,	8744793)
+
+yearpopmon <- rep(yearpop, each=12)
+mondiff <- length(yearpopmon) - length(dole)
+yearpopmon <- yearpopmon[1:(length(yearpopmon)-mondiff)]
+
+par(mfrow=c(2,1))
+plot(dole, main="Monthly total of people on unemployed benefits in Australia",
+     ylab="People", xlab="Years")
+plot(dole/yearpopmon, main="Average total of people on unemployed benefits in Australia per day",
+     ylab="People", xlab="Years")
+
+```
+
+#### #1b  
+Monthly total of accidental deaths in the United States (January 1973âDecember 1978).
+```{r usdeaths}
+usdeaths
+plot(usdeaths)
+
+#Seasonal plot: 
+#more accidental deaths around the summer months, peaking in July
+seasonplot(usdeaths, ylab="People", xlab="Year",
+           main="Season plot: Accidental deaths in America",
+           year.labels=TRUE, year.labels.left=TRUE, col=1:20, pch=19)
+
+#correct for days (although probably not necessary)
+monthdays <- rep(c(31,28,31,30,31,30,31,31,30,31,30,31),6)
+par(mfrow=c(2,1))
+plot(usdeaths/monthdays, main="Average total of accidental deaths per day",
+     ylab="People", xlab="Years")
+plot(usdeaths, main="Average total of accidental deaths per month",
+     ylab="People", xlab="Years")
+```
+
+#### #1c  
+Quarterly production of bricks (in millions of units) at Portland, Australia (March 1956âSeptember 1994).
+```{r bricks}
+par(mfrow=c(3,1))
+plot(bricksq, ylab="Bricks (Millions)", xlab="Year", main="Quarterly production of bricks at Portland, Australia")
+#Log transformation
+plot(log(bricksq), ylab="Transofrmed brick production", xlab="year", main="Transformed quarterly brick production")
+title(main="Log",line=-1)
+#box-cox
+lambda <-BoxCox.lambda(bricksq)
+plot(BoxCox(bricksq,lambda))
+title(main="BoxCox",line=-1)
+```
+
+### Problem 2
+Consider the daily closing IBM stock prices (data set ibmclose).
+Produce some plots of the data in order to become familiar with it.
+
+
+```{r ibm}
+par(mfrow=c(2,1))
+plot(ibmclose, main="Closing IBM stock prices", ylab="IBM stock price", xlab="Day")
+#boxcox
+labmda <-BoxCox.lambda(ibmclose)
+plot(BoxCox(ibmclose,lambda))
+```
+Split the data into a training set of 300 observations and a test set of 69 observations.
+
+```{r p2}
+set.seed(101) 
+sample <- sample.int(n = 369, size = 300, replace = F)
+fulllist <- 0:369
+rsample <- fulllist[!(fulllist %in% sample)]
+train <- ibmclose[sort(sample)]
+test <- ibmclose[sort(rsample)]
+
+
+train1 <- ibmclose[0:300]
+test1 <- ibmclose[301:369]
+```
+Try various benchmark methods to forecast the training set and 
+```{r p2c}
+ibm2 <- window(ibmclose, start=1, end=300)
+
+ibmfit1 <- meanf(ibm2, h=69)
+ibmfit2 <- rwf(ibm2, h=69)
+ibmfit3 <- snaive(ibm2, h=69)
+
+plot(ibmfit1)
+lines(ibmfit2$mean,col=2)
+lines(ibmfit3$mean,col=3)
+lines(ibmclose)
+
+#We see that the naive and drift give the same forecast here
+```
+
+compare the results on the test set. Which method did best?
+```{r p2d}
+ibm3 <- window(ibmclose, start=301)
+accuracy(ibmfit1, ibm3)
+accuracy(ibmfit2, ibm3)
+accuracy(ibmfit3, ibm3)
+#The naive and drift methods perform far better than the simple mean forecast
+```
+WEEK 2
+The data below represent the monthly sales (in thousands) of product A for a plastics manufacturer for years 1 through 5 (data set plastics).
+
+A.Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend?  
+```{r p2a}
+library(fpp)
+plot(plastics, ylab = "Product A", xlab="Year", main="Monthly sales of plastics product A")
+#Clear seasonal trends, with peaks in the summer
+```
+
+B. Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.
+```{r p2b}
+library("forecast")
+library(fma)
+
+fit.2b <- decompose(plastics, type="multiplicative")
+plot(fit.2b)
+trendcycle.indice <- fit.2b$trend
+seasonal.indice <- fit.2b$seasonal
+```
+
+C. Do the results support the graphical interpretation from part (a)?
+```{r p}
+plot(trendcycle.indice)
+plot(seasonal.indice)
+#Yes, the results support the graphical interpretion from part a. There is an upwards trend with seasonal peaks. 
+```
+D. Compute and plot the seasonally adjusted data.
+```{r 2d}
+fit.stl <- stl(plastics, t.window=12, s.window=4, robust=TRUE)
+plastics / fit.2b$seasonal
+fit.2b
+fit.season.adj <- seasadj(fit.stl)
+plot(fit.season.adj)
+```
+
+E. Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier?
+```{r 2e}
+plastics.out <- plastics
+plastics.out[15] <- plastics.out[15] + 500
+
+fit.stl.out <- stl(plastics.out, t.window=12, s.window=4, robust=TRUE)
+plot(fit.stl.out)
+fit.season.adj.out <- seasadj(fit.stl.out)
+plot(fit.season.adj.out)
+
+#the outlier appears to be largely ignored by the trend and seasonal indices, and is added to the remainder
+```
+
+F. Does it make any difference if the outlier is near the end rather than in the middle of the time series?
+```{r 2f}
+plastics.out.end <- plastics
+plastics.out.end[45] <- plastics.out.end[45] + 500
+
+fit.stl.out.end <- stl(plastics.out.end, t.window=12, s.window=4, robust=TRUE)
+plot(fit.stl.out.end)
+fit.season.adj.out.end <- seasadj(fit.stl.out.end)
+plot(fit.season.adj.out.end)
+
+#appears to still be mostly added to the remainder and ignored by seasonal and trend data
+```
+
+G. Use a random walk with drift to produce forecasts of the seasonally adjusted data.
+```{r 2g}
+rwf.d <- rwf(fit.season.adj, h=12,drift=TRUE)
+rwf.d$mean
+```
+
+H. Reseasonalize the results to give forecasts on the original scale.
+```{r 2h}
+rwf.d$mean * seasonal.indice[1:12]
+```
+
+WEEK 3
+3.1. The UC Irvine Machine Learning Repository6 contains a data set related to glass identification. The data consist of 214 glass samples labeled as one of seven class categories. There are nine predictors, including the refractive index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
+The data can be accessed via:
+
+```{r p3.1}
+library(mlbench)
+data(Glass)
+str(Glass)
+```
+(a) Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.
+```{r a}
+library(reshape2)
+head(melt(Glass))
+head(Glass)
+library(ggplot2)
+Glass$RI
+GlassPred <- Glass[, -(1)]
+GlassPred$Type <- as.numeric(GlassPred$Type)
+ggplot(data=melt(Glass), mapping=aes(x = value)) +
+  geom_histogram(bins = 100) + facet_wrap(~variable, scales = 'free_x') + ylim(0, 25)
+
+#Most of these variables (Na, Mg, Si, and Ca) have notable skews. Al seems to be slightly right skewed, but may just have some outliers. K also has some outliers, and appears to be bifurcated.
+
+corrGlass <- cor(GlassPred, use="pairwise.complete.obs")
+library(corrplot)
+corrplot(corrGlass, order = "hclust")
+
+#Type, AI, Ba, and Mg appear to have negative correlations, with another cluster of negative correlations among Mg, K, and Ca. 
+#Na, Ba, Ai, and Type form a cluster of positively correlated variables. 
+```
+(b) Do there appear to be any outliers in the data? Are any predictors skewed?
+```{r b}
+boxplot(GlassPred)
+#As the histogram also suggested, there appears to be significant outliers within the Na, Al, Si, K, Ca, and Ba variables, with potentially fewer for Fe. 
+
+GlassSkew <- apply(GlassPred, 2, skewness)
+GlassSkew
+#Also, as the histogram confirms, Mg and Si are left skewed (also Si has several outliers), while all others are right skewed; although even here, with the exception of Ca, many of the skews appear to be due to outliers. 
+```
+(c) Are there any relevant transformations of one or more predictors that
+might improve the classification model?
+```{r c}
+#spacialsign might help with the outliers
+summary(GlassPred)
+#No missing values
+
+#Variables Ba and Fe may benefit from log scales to tighten up the distributions
+
+#PCA may help tease out the important variables from among the clusters of correlated variables
+pcaObject <- prcomp(GlassPred,
+                    center = TRUE, scale. = TRUE)
+pcaObject$sd^2/sum(pcaObject$sd^2)*100
+head(pcaObject$x[, 1:5])
+library(caret)
+#BoxCox can help with skewness
+GlassPredTrans <- preProcess(GlassPred, 
+                             method = c("BoxCox", "center", "scale", "pca"))
+GlassPredTrans
+```
+3.2. The soybean data can also be found at the UC Irvine Machine Learning Repository. Data were collected to predict disease in 683 soybeans. The 35 predictors are mostly categorical and include information on the environmen- tal conditions (e.g., temperature, precipitation) and plant conditions (e.g., left spots, mold growth). The outcome labels consist of 19 distinct classes.
+
+The data can be loaded via:
+library(mlbench)
+data(Soybean)
+ ## See ?Soybean for details
+
+(a) Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?
+```{r p3.2a}
+library(mlbench)
+data(Soybean)
+summary(Soybean)
+
+SoyPred <- Soybean
+head(Soybean[,2:length(SoyPred)])
+SoyPred[, 2:length(SoyPred)] <- lapply(SoyPred[,2:length(SoyPred)], function(x) as.numeric(as.character(x)))
+
+ggplot(data=melt(SoyPred), mapping=aes(x = value)) +
+  geom_bar() + facet_wrap(~variable, scales = 'free_x')
+
+#There are several predictors that have little variance. The worst cases are mycelium, sclerotia, lodging, mold.growth, leaf.mlf, leaf.mild, shriveling, seed.discover, seed.size, and leaf.malf, which have low frequencies of non-zero values. Predictors like leaf.shread, fruiting.bodies, leaves, roots, and maybe seed also have low variance and may be problematic for models like linear regression. 
+```
+
+(b) Roughly 18 % of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?
+```{r p.3.2b}
+#The leaf predictors have a min of 84 NA's each, as does fruit.pods
+#The canker predictors both have 38, as does ext.decay, mcelium, int.discover, and sclerotia, and precip
+#Seed, mold.growth, seed.discolor, seed.size, and shriveling also seemed group, and have NA's of either 92 or 106
+#sever, seed.tmt, and germ also all have large amounts of NA, and are possibly grouped together; sever and seed.tmt have 121, germ is at 112, the most of the groupings
+
+#str(Soybean)
+Soybean$na_count <- apply(Soybean, 1, function(x) sum(is.na(x)))
+library(dplyr)
+dpSoybean <- Soybean %>%
+  select(Class, na_count) %>%
+  group_by(Class) %>%
+  summarise(na_count = sum(na_count)) %>%
+  arrange(desc(na_count))
+
+dpSoybean
+#Looks like the class "phytophthora-rot" accounts for many NA's, followed by 2-4-d-injury, cyst-nematode, diaporthe-pod-&stem-blight, and herbicide-injury
+```
+
+(c) Develop a strategy for handling missing data, either by eliminating predictors or imputation.
+```{r p3.2c}
+#let's first remove some of the most degenerate predictors with the least variation
+#summary(Soybean)
+SoybeanND <- Soybean[,-c(37, 35, 34, 33, 28, 26, 21, 19, 18)]
+SoybeanND[, 2:length(SoybeanND)] <- lapply(SoybeanND[,2:length(SoybeanND)], function(x) as.numeric(as.character(x)))
+
+SoybeanND <- SoybeanND[,-1]
+str(SoybeanND)
+summary(SoybeanND)
+SoyPred <- SoyPred[,-1]
+corrSoybean <- cor(SoybeanND, use="pairwise.complete.obs")
+library(corrplot)
+corrplot(corrSoybean, order = "hclust")
+#Looks like leaf.marg shares strong correlations with both leaf.halo and leaf.size. This makes me think to remove leaf.marge, but also makes me think taking out leaf.halo and leaf.size instead might be more efficient? 
+
+#Fruit.spots and plant.growth also share strong correlation. Fruit.spots has many more NA's, so would be the better candidate for removal. 
+
+
+#Regarding the imputations, the book doesn't go as deep into this as I'd like, but suggests we can use k-nearest neighbors to model the NA's. s
+```
+WEEK 4
+Data set books contains the daily sales of paperback and hardcover books at the same store. The task is to forecast the next four days sales for paperback and hardcover books (data set books).
+A.Plot the series and discuss the main features of the data.
+```{r 41a}
+library(fpp)
+data(books)
+
+plot(books, ylab = "Daily Sales", xlab = "Days")
+
+#Both increase over time, although there may be clearer multi-day trends within the paperback data
+```
+
+B.Use simple exponential smoothing with the ses function (setting initial="simple") and explore different values of Î±Î± for the paperback series. Record the within-sample SSE for the one-step forecasts. Plot SSE against Î±Î± and find which value of Î±Î± works best. What is the effect of Î±Î± on the forecasts?
+```{r 4b}
+fit1 <- ses(books[,'Paperback'], alpha = .2, initial="simple", h=3)
+fit2 <- ses(books[,'Paperback'], alpha = .6, initial="simple", h=3)
+fit3 <- ses(books[,'Paperback'], alpha = .8, initial="simple", h=3)
+#fit4 <- ses(books[,'Paperback'], h=3)
+plot(fit1, plot.conf=FALSE, ylab="Daily Sales", xlab="Days", main="", fcol="white", type="o")
+lines(fitted(fit1), col="blue", type="o")
+lines(fitted(fit2), col="red", type="o")
+lines(fitted(fit3), col="green", type="o")
+lines(fit1$mean, col="blue", type="o")
+lines(fit2$mean, col="red", type="o")
+lines(fit3$mean, col="green", type="o")
+legend("topleft",lty=1, col=c(1,"blue","red","green"), 
+  c("data", expression(alpha == 0.2), expression(alpha == 0.6), expression(alpha == 0.8)),pch=1)
+```
+
+```{r 4b1}
+SSEcoll <- c(fit1$model$SSE, fit2$model$SSE, fit3$model$SSE)
+alphacoll <- c(.2, .6, .8)
+plot(SSEcoll, alphacoll)
+#Looks like Î± of .2 has the lowest SSE, since SSE appears to increase in tandem with Î±. Lower Î±'s emphasize the predictive power of the previous prediction -- the smoothing. 
+```
+
+C.Now let ses select the optimal value of Î±Î±. Use this value to generate forecasts for the next four days. Compare your results with 2.
+```{r 4c}
+fit4 <- ses(books[,'Paperback'], h=3)
+alpha4 <- fit4$model$par[1]
+fitA4 <- ses(books[,'Paperback'], alpha = alpha4, initial="simple", h=4)
+
+fit1 <- ses(books[,'Paperback'], alpha = .2, initial="simple", h=4)
+fit2 <- ses(books[,'Paperback'], alpha = .6, initial="simple", h=4)
+fit3 <- ses(books[,'Paperback'], alpha = .8, initial="simple", h=4)
+
+plot(fit1, plot.conf=FALSE, ylab="Daily Sales", xlab="Days", main="", fcol="white", type="o")
+lines(fitted(fit1), col="blue", type="o")
+lines(fitted(fit2), col="red", type="o")
+lines(fitted(fit3), col="green", type="o")
+lines(fitted(fitA4), col="purple", type="o")
+lines(fit1$mean, col="blue", type="o")
+lines(fit2$mean, col="red", type="o")
+lines(fit3$mean, col="green", type="o")
+lines(fitA4$mean, col="purple", type="o")
+legend("topleft",lty=1, col=c(1,"blue","red","green","purple"), 
+  c("data", expression(alpha == 0.2), expression(alpha == 0.6), expression(alpha == 0.8), expression(alpha == 0.168)),pch=1)
+#The fitted alpha of .168 expectedly closely mimics .2
+```
+D.Repeat but with initial="optimal". How much difference does an optimal initial level make?
+```{r 4d}
+fit4 <- ses(books[,'Paperback'], h=3)
+alpha4 <- fit4$model$par[1]
+fitA4 <- ses(books[,'Paperback'], alpha = alpha4, initial="optimal", h=4)
+
+fit1 <- ses(books[,'Paperback'], alpha = .2, initial="optimal", h=4)
+fit2 <- ses(books[,'Paperback'], alpha = .6, initial="optimal", h=4)
+fit3 <- ses(books[,'Paperback'], alpha = .8, initial="optimal", h=4)
+
+plot(fit1, plot.conf=FALSE, ylab="Daily Sales", xlab="Days", main="", fcol="white", type="o")
+lines(fitted(fit1), col="blue", type="o")
+lines(fitted(fit2), col="red", type="o")
+lines(fitted(fit3), col="green", type="o")
+lines(fitted(fitA4), col="purple", type="o")
+lines(fit1$mean, col="blue", type="o")
+lines(fit2$mean, col="red", type="o")
+lines(fit3$mean, col="green", type="o")
+lines(fitA4$mean, col="purple", type="o")
+legend("topleft",lty=1, col=c(1,"blue","red","green","purple"), 
+  c("data", expression(alpha == 0.2), expression(alpha == 0.6), expression(alpha == 0.8), expression(alpha == 0.168)),pch=1)
+#Don't see a noticable difference on the basic plots.
+```
+
+E.Repeat steps (b)(d) with the hardcover series.
+```{r 41e}
+fit4 <- ses(books[,'Hardcover'], h=3)
+alpha4 <- fit4$model$par[1]
+fitA4 <- ses(books[,'Hardcover'], alpha = alpha4, initial="simple", h=4)
+
+fit1 <- ses(books[,'Hardcover'], alpha = .2, initial="simple", h=4)
+fit2 <- ses(books[,'Hardcover'], alpha = .6, initial="simple", h=4)
+fit3 <- ses(books[,'Hardcover'], alpha = .8, initial="simple", h=4)
+
+plot(fit1, plot.conf=FALSE, ylab="Daily Sales", xlab="Days", main="", fcol="white", type="o")
+lines(fitted(fit1), col="blue", type="o")
+lines(fitted(fit2), col="red", type="o")
+lines(fitted(fit3), col="green", type="o")
+lines(fitted(fitA4), col="purple", type="o")
+lines(fit1$mean, col="blue", type="o")
+lines(fit2$mean, col="red", type="o")
+lines(fit3$mean, col="green", type="o")
+lines(fitA4$mean, col="purple", type="o")
+legend("topleft",lty=1, col=c(1,"blue","red","green","purple"), 
+  c("data", expression(alpha == 0.2), expression(alpha == 0.6), expression(alpha == 0.8), expression(alpha == 0.328)),pch=1)
+#Here, the fitted alpha is .328, which is further away from the guessed alphas from before...
+
+SSEcoll <- c(fit1$model$SSE, fit2$model$SSE, fit3$model$SSE)
+alphacoll <- c(.2, .6, .8)
+plot(SSEcoll, alphacoll)
+#here the alpha of .6 is actually a better fit than .2, yet .8 is the worst, so we have an interesting curve, likely right skewed...
+
+#with optimal values:
+fit4 <- ses(books[,'Hardcover'], h=3)
+alpha4 <- fit4$model$par[1]
+fitA4 <- ses(books[,'Hardcover'], alpha = alpha4, initial="optimal", h=4)
+
+fit1 <- ses(books[,'Hardcover'], alpha = .2, initial="optimal", h=4)
+fit2 <- ses(books[,'Hardcover'], alpha = .6, initial="optimal", h=4)
+fit3 <- ses(books[,'Hardcover'], alpha = .8, initial="optimal", h=4)
+
+plot(fit1, plot.conf=FALSE, ylab="Daily Sales", xlab="Days", main="", fcol="white", type="o")
+lines(fitted(fit1), col="blue", type="o")
+lines(fitted(fit2), col="red", type="o")
+lines(fitted(fit3), col="green", type="o")
+lines(fitted(fitA4), col="purple", type="o")
+lines(fit1$mean, col="blue", type="o")
+lines(fit2$mean, col="red", type="o")
+lines(fit3$mean, col="green", type="o")
+lines(fitA4$mean, col="purple", type="o")
+legend("topleft",lty=1, col=c(1,"blue","red","green","purple"), 
+  c("data", expression(alpha == 0.2), expression(alpha == 0.6), expression(alpha == 0.8), expression(alpha == 0.168)),pch=1)
+#Don't see a noticable difference on the basic plots.
+```
+
+For this exercise, use the quarterly UK passenger vehicle production data from 1977:1--2005:1 (data set ukcars).
+A.Plot the data and describe the main features of the series.
+```{r 4.3a}
+data(ukcars)
+plot(ukcars)
+#We see a highly oscilating curve that likely trends by both month/season and perhaps decade
+```
+
+B.Decompose the series using STL and obtain the seasonally adjusted data.
+```{r 4.3b}
+ukcars
+decomp3b <- stl(ukcars, t.window=15, s.window=5, robust=TRUE) #decompose the data
+
+
+plot(ukcars, col="gray",
+     main="UK Passenger Vehicle Production: Seassonal Adjustment", ylab="car production")
+lines(seasadj(decomp3b), col="red", ylab="Trend")
+#chart appears acurrate -- the trend and remainder without the swings of the seasonal patterns
+
+SeasAdj3b <- seasadj(decomp3b)
+
+#Seasonal3b <- fit3b$time.series[,'seasonal']
+
+#plot(Seasonal3b)
+```
+
+C.Forecast the next two years of the series using an additive damped trend method applied to the seasonally adjusted data. Then reseasonalize the forecasts. Record the parameters of the method and report the RMSE of the one-step forecasts from your method.
+```{r 4.3c}
+#two year forecast with additive damped method
+fit3c <- holt(SeasAdj3b, h=8, damped=TRUE)
+plot(fit3c, main="Seasonally Adjusted Forecast from Damped Holt's method")
+
+#reseasonalize forecasts: adding the seasonality back in
+reseason3c <- holt(ukcars, h=8, damped=TRUE)
+
+#parameters: 
+fit3c$model$par #requires smaller smoothing parameter than the seasonalized, least adjustment, beta, phi, l, and b all at standard levels
+reseason3c$model$par
+
+#RMSE:
+sqrt(fit3c$model$mse) #21.7: lower than the seasonalized fit
+sqrt(reseason3c$model$mse) #41
+```
+D.Forecast the next two years of the series using Holt's linear method applied to the seasonally adjusted data. Then reseasonalize the forecasts. Record the parameters of the method and report the RMSE of of the one-step forecasts from your method.
+```{r 4.3d}
+#two year forecast using Holt's linear method applied to seasonally adjusted data
+fit3d <- holt(SeasAdj3b, initial="optimal", h=8)
+plot(fit3d, main="Seasonally Adjusted Forecast from Holt's linear method")
+#clear trend with upward sloping curve, appears accurate
+
+#reseasonalize forecasts: adding the seasonality back in
+reseason3d <- holt(ukcars, h=8, initial="optimal")
+plot(reseason3d)
+
+#parameters
+fit3d$model$par #very slightly higher alpha than additive damped, so requires more smoothing
+reseason3d$model$par
+
+#RMSE
+HoltLinSeasRMSE <- sqrt(fit3d$model$mse) #21.76
+sqrt(reseason3d$model$mse) #42.17 (higher, again)
+```
+E.Now use ets() to choose a seasonal model for the data.
+```{r 4.3e}
+fit3e <- ets(ukcars, model= "ZZZ")
+str(fit3e)
+#it chose an exponential smoothing model with additive errors and additive seasonal component:
+fit3e$method
+```
+
+F.Compare the RMSE of the fitted model with the RMSE of the model you obtained using an STL decomposition with Holt's method. Which gives the better in-sample fits?
+```{r 4.3f}
+fittedRMSE <- sqrt(fit3e$mse)
+sprintf("RMSE of model using STL decomposition with Holt: %f, RMSE of fitted ets model: %f -- the STL decomposition with Holt actually fit better", HoltLinSeasRMSE, fittedRMSE)
+```
+G.Compare the forecasts from the two approaches? Which seems most reasonable?
+```{r 4.3G}
+#plot of holt: while the straight line forecast might have less overall error, it doesn't predict any of the seasonal variation
+plot(fit3d)
+#the ETS forecast does predict the season variation, so may be more useful for planning per month or season, instead of 2 year period
+plot(forecast(fit3e, h=8))
+```
+WEEK 5
+Read HA #8 (HW  8.1, 8.2,8.6, 8.8)
+
+8.1 Figure 8.24 shows the ACFs for 36 random numbers, 360 random numbers and for 1,000 random numbers.
+
+A. Explain the differences among these figures. Do they all indicate the data are white noise?
+The first difference is that the variance/standard deviation decreases with sample size, which makes the bands narrower. 
+
+For chart one, there appears to be some pattern remaining every 2 lags. 
+For chart 2 and 3, there are several spikes each that appear to hit the the bounds, suggesting that the data are not all white noise. 
+
+B. Why are the critical values at different distances from the mean of zero? Why are the autocorrelations different in each figure when they each refer to white noise?
+Each critical value represents the autocorrelation between y and its corresponding lagged value of y. So there can be different autocorrelations at each point, possibly due to some non-stationarity in the data, but most likely, if they are within the bounds, due to error. 
+
+
+8.2
+A classic example of a non-stationary series is the daily closing IBM stock prices (data set ibmclose). Use R to plot the daily closing prices for IBM stock and the ACF and PACF. Explain how each plot shows the series is non-stationary and should be differenced.
+```{r 5.8.2}
+data(ibmclose)
+plot(ibmclose, main = "Daily IBM Closing Prices")
+#There is a clear time trend here, as it occilates up for a while then down. So nearly any given point can be roughly predicted with prior data. Because I don't see any clear seasonality or secondary trends, it should likely be differenced only once. 
+
+par(mfrow=c(1,2))
+Acf(ibmclose, main="")
+Pacf(ibmclose, main="")
+
+#The acf shows the autocorrelations between each variable and y. Because each variable is clearly outside of the bounds, they are autocorrelated with y, and likely eachother as well, and therefore not stationary. Because the acf shows steadily decreasing lags, my guess is that it only needs to be differenced once here. 
+#The pacf attempts to weed out the autocorrelations between the intervening variables, and just focus on y and yk. Here it shows that there is little seasonality in the data -- there are no significant spikes after the initial lag. One approaches the bound, but that is fine as one in 20 fit the error rate. 
+```
+8.6
+Consider the number of women murdered each year (per 100,000 standard population) in the United States (data set wmurders).
+A. By studying appropriate graphs of the series in R, find an appropriate ARIMA(p,d,q) model for these data.
+```{r 5.8.6a}
+plot(wmurders) #Looks like there is a main time trend here with some seasonality.
+par(mfrow=c(1,2))
+Acf(wmurders, main="") #Possibly sinusoidal 
+Pacf(wmurders, main="") #no significant spikes on the pacf
+
+#Since there are no lonesome significant spikes in either the ACF or PACF, it's unlikely to be an Arima(p,d,0) or Arima(0,d,p) model, so it's likely an Arima (1,d,1) model. And since it clearly needs differencing and doesn't appear to be a random walk, it's likely an Arima(1,2,1). 
+```
+B.Should you include a constant in the model? Explain.
+
+My hunch is yes, because a quadradic model is likely the best fit here. That said, I'm not going to, because the book doesn't include by hand calculations for using a constant, and I unfortunately don't have the time to figure that out right now. 
+
+C.Write this model in terms of the backshift operator.
+$$(1-\phi_1B)(1-B)^2y_t = (1+\phi_1B)e_t$$
+
+D.Fit the model using R and examine the residuals. Is the model satisfactory?
+```{r 5.8.6d}
+fit6121 <- Arima(wmurders, order=c(1,2,1))
+fit6131 <- Arima(wmurders, order=c(1,3,1))
+fit6020 <- Arima(wmurders, order=c(0,2,0))
+summary(fit6121) #AICc = -6.39 Winner!
+summary(fit6131) #Aicc = 8.55
+summary(fit6020) #Aicc = 30.84
+
+Acf(residuals(fit6121), main = "") #the residuals look fine, all are within the threshold limits
+```
+E.Forecast three times ahead. Check your forecasts by hand to make sure you know how they have been calculated.
+```{r 5.8.6e}
+forecast6121 <- forecast(fit6121, h=3)
+#for arima(1,2,1):
+#(1-sig1*B)((1-B)^2)yt = (1 + theta*B)et
+fit6121
+```
+$$(1-\phi_1B)(1-B)^2y_t = (1+\theta_1B)e_t$$
+$$=(1-2B + B^2 + \phi_1B-2\phi_1B^2 + \phi_1B^3)y_t = e_t + \theta_1Be_t$$
+$$=(1-(2-\phi_1)B + (1-2\phi)B^2 + \phi_1B^3)y_t = e_t + \theta_1Be_t$$
+$$y_t - (2-\phi_1)y_{t-1}+(1-2\phi_1)y_{t-2}+\phi_1y_{t-3} = e_t + \theta_1e_{t-1}$$
+$$y_t = (2-\phi_1)y_{t-1}-(1-2\phi_1)y_{t-2}-\phi_1y_{t-3} + e_t + \theta_1e_{t-1}$$
+#T+1
+$$y_{T+1} = (2-\phi_1)y_T-(1-2\phi_1)y_{T-1}-\phi_1y_{T-2} + e_{T+1} + \theta_1e_{T}$$
+$$\hat{y}_{T+1|T} = (2-\phi_1)y_T-(1-2\phi_1)y_{T-1}-\phi_1y_{T-2} + \theta_1\hat{e}_{T}$$
+$$\hat{y}_{T+2|T} = (2-\phi_1)\hat{y}_{T+1|T}-(1-2\phi_1)y_{T}-\phi_1y_{T-1}$$
+$$\hat{y}_{T+3|T} = (2-\phi_1)\hat{y}_{T+2|T}-(1-2\phi_1)\hat{y}_{T+1|T}-\phi_1y_{T}$$
+```{r 5.byhand}
+phiHand <- -0.2434
+thetaHand <- -0.8261
+res6 <- fit6121$residuals
+res6t <- res6[length(res6)]
+res6tm1 <- res6[length(res6)-1]
+res6tm2 <- res6[length(res6)-2]
+
+yt <- wmurders[length(wmurders)]
+ytm1 <- wmurders[length(wmurders)-1]
+ytm2 <- wmurders[length(wmurders)-2]
+
+yt1 <- (2-phiHand)*yt - (1-2*phiHand)*ytm1 - phiHand*ytm2 + thetaHand*res6t
+yt2 <- (2-phiHand)*yt1 - (1-2*phiHand)*yt - phiHand*ytm1
+yt3 <- (2-phiHand)*yt2 - (1-2*phiHand)*yt1 - phiHand*yt
+manFor <- c(yt1, yt2, yt3)
+For121 <- forecast(fit6121, h=3)
+str(For121)
+ForComp <- rbind(manFor, For121$mean)
+ForComp #not quite!
+```
+F.Create a plot of the series with forecasts and prediction intervals for the next three periods shown.
+```{r 5.8.6f}
+plot(forecast6121)
+```
+G.Does auto.arima give the same model you have chosen? If not, which model do you think is better?
+```{r 5.8.6G}
+fit6d <- auto.arima(wmurders, seasonal = FALSE)
+fit6d #same model
+```
+
+8.8
+Consider the total net generation of electricity (in billion kilowatt hours) by the U.S. electric industry (monthly for the period 1985â1996). (Data set usmelec.) In general there are two peaks per year: in mid-summer and mid-winter.
+
+A. Examine the 12-month moving average of this series to see what kind of trend is involved.
+```{r 5.8.8a} 
+data(usmelec)
+library(fpp)
+library(TTR)
+elecSMA12 <- SMA(usmelec, n=12, '12-month moving average')
+plot.ts(elecSMA12)
+#clear positive trend, potential monthly seasonality as well
+```
+B. Do the data need transforming? If so, find a suitable transformation.
+```{r 5.8.8b} 
+plot(usmelec)
+#Variance increases with the trend, so a log transformation should help. 
+lelec <- log(usmelec)
+bcelec <- BoxCox(usmelec, BoxCox.lambda(usmelec))
+par(mfrow=c(3,1))
+plot(usmelec, ylab="Electic Generation", xlab="Year")
+plot(lelec, ylab="Log Electric Generation", xlab="Year")
+plot((bcelec), ylab="BoxCox Electric Generation", xlab="Year")
+#BoxCox looks best
+```
+C. Are the data stationary? If not, find an appropriate differencing which yields stationary data.
+```{r 5.8.8c}
+#The data is not stationary -- there is a clear trend
+tsdisplay(diff(bcelec,12))
+#There still appears to be some non-stationarity, so take an additional first difference. 
+tsdisplay(diff(diff(bcelec,12)))
+```
+D. Identify a couple of ARIMA models that might be useful in describing the time series. Which of your models is the best according to their AIC values?
+```{r 5.8.8d}
+
+#Significant spike in ACF at lag 1 and 2 suggests two non-season AF components.  The 4 seasonal spikes in the PACF suggest seasonality components in the MA. 
+#Some guesses:
+fit8212113 <- Arima(usmelec, order=c(2,1,2), seasonal=c(1,1,3))
+#fit8222113 <- Arima(usmelec, order=c(2,2,2), seasonal=c(1,1,3))
+fit8212013 <- Arima(usmelec, order=c(2,1,2), seasonal=c(0,1,3))
+fit8212003 <- Arima(usmelec, order=c(2,1,2), seasonal=c(0,0,3))
+fit8212002 <- Arima(usmelec, order=c(2,1,2), seasonal=c(0,0,2))
+fit8212113$aicc #aicc of -3035
+#fit8222113$aicc #-4215
+fit8212013$aicc #-3046 Winner
+fit8212003$aicc #-3501
+fit8212002$aicc #-3567
+
+auto.arima(usmelec)
+```
+
+E. Estimate the parameters of your best model and do diagnostic testing on the residuals. Do the residuals resemble white noise? If not, try to find another ARIMA model which fits better.
+```{r 5.8.8e}
+#parameters:
+str(fit8212002)
+fit8212013$model$theta
+fit8212013$model$phi #?
+
+tsdisplay(residuals(fit8212013))
+#the residuals still aren't fitting fully within the bounds, and it appears to be mostly seasonal differences. Still, the aicc's fit best with lower seasonal numbers, so I'll ramp down the non-seasonal. 
+
+#Checking auto-arima
+auto.arima(bcelec, stepwise=FALSE, approximation=FALSE) #says to use (211,002)
+fit8211002 <- Arima(bcelec, order=c(2,1,1), seasonal=c(0,0,2))
+fit8211002$aicc #worse!
+tsdisplay(residuals(fit8211002))
+
+```
+F. Forecast the next 15 years of generation of electricity by the U.S. electric industry. Get the latest figures from http://data.is/zgRWCO to check on the accuracy of your forecasts.
+```{r 5.8.8f}
+forecast212002 <- forecast(fit8212002, h=(12*15))
+
+elecDat <- read.csv("/Users/andrew/Documents/School/predictive analytics/Homework - Arima/electricity-overview.csv")
+
+library(dplyr)
+library(tidyr)
+
+elecTidy <- elecDat %>%
+  separate(Month, c("YYYY", "MM")) %>%
+  filter(YYYY >= 2010) 
+
+elecTidy <- elecTidy[!((elecTidy$YYYY == 2010 & elecTidy$MM < 10)),]
+elecAcc <- elecTidy$Electricity..overview
+elecAcc <- elecAcc[-length(elecAcc)]
+
+(accuracy(forecast212002, elecAcc))
+```
+G. How many years of forecasts do you think are sufficiently accurate to be usable?
+```{r 5.8.8g}
+plot(forecast212002)
+#becomes a constant around 2014 -- so about 3-4 years. 
+
+```

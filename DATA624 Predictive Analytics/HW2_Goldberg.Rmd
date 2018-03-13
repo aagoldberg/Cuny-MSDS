@@ -1,0 +1,1039 @@
+---
+title: "HW2"
+author: "Andrew Goldberg"
+date: "December 11, 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Chapter 6
+Page 139
+6.3. A chemical manufacturing process for a pharmaceutical product was discussed in Sect.1.4. In this problem, the objective is to understand the relationship between biological measurements of the raw materials (predictors),measurements of the manufacturing process (predictors), and the response of product yield. Biological predictors cannot be changed but can be used to assess the quality of the raw material before processing. On the other hand, manufacturing process predictors can be changed in the manufacturing process. Improving product yield by 1% will boost revenue by approximately one hundred thousand dollars per batch:
+
+(a) Start R and use these commands to load the data: 
+The matrix processPredictors contains the 57 predictors (12 describing the input biological material and 45 describing the process predictors) for the 176 manufacturing runs. yield contains the percent yield for each run.
+```{r 6.3a}
+library(AppliedPredictiveModeling)
+data(ChemicalManufacturingProcess)
+ChemDat <- ChemicalManufacturingProcess
+#summary(ChemDat)
+```
+
+(b) A small percentage of cells in the predictor set contain missing values. Use an imputation function to fill in these missing values (e.g., see Sect. 3.8).
+```{r 6.3b}
+library(impute)
+library(mice)
+library(ipred)
+set.seed(731)
+#summary(ChemDat[, apply(ChemDat, 2, function(x) any(is.na(x)))])
+ChemDat.Imp <- (impute.knn(as.matrix(ChemDat)))
+Chem.Imp.Df <- as.data.frame(ChemDat.Imp$data)
+#md.pattern(ChemDat) #Not printing missing data patterns for brevity 
+```
+There were 7 instances with rows missing the same 3 vars (MP 10,11,03), and 5 instances of rows missing the same 11 variables (MP 25,26,27,28,29,30,31,33,34,35,36). This suggests possible correlation and even candidates for removal. 
+
+Imputed using K nearest neighbors from the "impute" package. There were a few key patterns of missing data, which didn't appear random. The impute package required converting the original dataframe to a matrix, which turned all variables into doubles. There were a few integer columns that were coerced to numeric, which should actually make coding easier in the future. (Notably, the book says to apply imputation after transformation/center/scaling, but...)
+
+(c1) Split the data into a training and a test set
+```{r 6.3c1, split data}
+N <- nrow(Chem.Imp.Df)
+n <- sample(1:N, 2 * N / 3, replace = F)
+
+Train <- Chem.Imp.Df[n,]
+TrainX <- Train[,2:ncol(Train)]
+TrainY <- Train[,1]
+dim(Train) #117 rows
+
+Test <- Chem.Imp.Df[-n,]
+TestX <- Test[,2:ncol(Test)]
+TestY <- Test[,1]
+dim(Test) #59 rows
+```
+(c2) Pre-process the data
+```{r 6.3c2a, preprocess hist}
+library(e1071)
+
+#Data Exploration
+par(mfrow = c(3,3))
+for (i in 1:(ncol(Train)-1)) {
+  hist(Train[,i], xlab = names(Train[i]), 
+    main = names(Train[i]), col="grey", ylab="")
+}
+```
+Several variables have significant skews, most are measured on different x and y scales, and none are centered. Several also have outliers. 
+```{r 6.3c2b, preprocess skewness}
+skew.TrainX <- apply(TrainX, 2, skewness)
+sort(skew.TrainX)
+#Several of the most leftward skewed vars come from the group with missing data
+
+#Using caret package to find appropriate transformations and apply to data
+library(caret)
+
+#Apply BoxCox, centering, and scaling to training data
+transR <- preProcess(TrainX, method = c("BoxCox", "center", "scale"))
+TrainX.trs <- predict(transR, TrainX)
+
+#Test data
+transE <- preProcess(TestX, method = c("BoxCox", "center", "scale"))
+TestX.trs <- predict(transE, TestX)
+```
+The preProcess function centered and scaled every variable, and performed box-cox transformation on many (32)
+
+Apply spacial sign technique to handle outliers
+```{r 6.3c2c, handle outliers}
+#Without PCA
+TrainX.trs.ss <- spatialSign(TrainX.trs)
+TestX.trs.ss <- spatialSign(TestX.trs)
+par(mfrow = c(3,3))
+for (i in 1:(ncol(TrainX.trs.ss)-1)) {
+ boxplot(TrainX.trs.ss[,i], xlab = names(TrainX.trs.ss[i]), 
+   main = names(TrainX.trs.ss[i]), col="grey", ylab="")
+}
+
+```
+Outliers are now less severe
+
+Filter for variance and correlation
+```{r 6.3c2d, preprocess skewness}
+#Non PCA
+nearZeroVar(TrainX.trs.ss) #No near zero variance predictors
+
+correlations <- cor(TrainX.trs.ss)
+
+library(corrplot)
+corrplot(correlations, order = "hclust", tl.cex = 0.55)
+#A few groups of highly correlated predictors
+
+#Locating and removing highly correlated predictors:
+highCorr <- findCorrelation(correlations, cutoff = .75)
+length(highCorr)
+TrainX.trs.ss.fil <- TrainX.trs.ss[, -highCorr]
+TrainX.pr <- as.data.frame(TrainX.trs.ss.fil) #marking as processed
+
+TestX.trs.ss.fil <- TestX.trs.ss[, -highCorr]
+TestX.pr <- as.data.frame(TestX.trs.ss.fil)
+```
+Tune a model of your choice from this chapter. What is the optimal value
+of the performance metric?
+```{r 6.3c2e, Partial Least Squares}
+TrainData <- TrainX.pr
+TrainData$Yield <- TrainY
+TestData <- TestX.pr
+TestData$Yield <- TestY
+
+#Tune a partial least squares model
+
+#Tune PLS model: 25 Bootstrapped reps, test 15 components (Originally tested without tuneLength, result was 3, but tried more to double check)
+plsFit.TL <- train(Yield~., data = TrainData,
+                 method = "pls",
+                tuneLength = 15)
+
+plsFit.TL
+#Rsquared maxes at 3 components, Error values are reach minimums as well
+plot(plsFit.TL)
+#Graph confirms
+```
+(d) Predict the response for the test set. 
+```{r 6.3d, Predict test data}
+PredTestY <- predict(plsFit.TL, TestX.pr)
+```
+What is the value of the performance metric and how does this compare with the resampled performance metric
+on the training set?
+```{r 6.3d1, perf metric}
+#I believe the model is using 3 components for prediction -- unchanged from when it was fit. But let's play.
+
+#Calculate RMSE
+caret::RMSE(PredTestY, TestY) #1.39 -- slightly worse than training data @ 3 components
+
+
+#Fit Data with just Test data:
+plsFit.TL.Test <- train(Yield~., data = TestData,
+                 method = "pls",
+                tuneLength = 15)
+
+plsFit.TL.Test
+#Rsquared still maxes at 3 components, Error values are reach minimums as well
+plot(plsFit.TL.Test)
+```
+(e) Which predictors are most important in the model you have trained? Do
+either the biological or process predictors dominate the list?
+```{r 6.3 e}
+#https://www.displayr.com/using-partial-least-squares-to-conduct-relative-importance-analysis-in-r/
+coefficients = plsFit.TL$finalModel$coefficients
+sum.coef = sum(sapply(coefficients, abs))
+coefficients = coefficients *100 / sum.coef
+coefficients = sort(coefficients)
+
+barplot(tail(coefficients, 7), cex.names = .6)
+#Both types of predictors are represented in about equal proportion to their percentage among all predictor variables. 
+
+#another way, which we learn in the next chapter, is to use varImp!
+linearImp <- varImp(plsFit.TL)
+#This shows that manufacturing processes 9,17 are the most important, followed by manufacturing processes 36,12,and 6 along with biological processes 3
+```
+(f) Explore the relationships between each of the top predictors and the response. How could this information be helpful in improving yield in future
+runs of the manufacturing process?
+```{r 6.3f}
+TopPredNames <- names(tail(coefficients,7))
+YtopX <- TrainX[, TopPredNames]
+YtopX$Yield <- TrainY
+
+#strength of correlations run in parrellel with importance of predictor in model, so these practices should obviously be stressed to maximize yield
+#cor(YtopX)
+
+# par(mfrow = c(2,3))
+# for (i in 2:(ncol(YtopX)-1)) {
+#   with(YtopX, scatter.smooth(Yield, YtopX[,i], xlab = "Yield" , 
+#     main = names(YtopX[i]), col="grey", ylab=names(YtopX[i]), cex = 1.5))
+# }
+
+
+```
+In particular, looking at the scatter plots, we see that ManufacturingProcess 6 and 9, along with Biological Material 3 appear to be the most predictable in their contribution to yield -- that is they are the easiest to fit onto a regression line. Process 11 and 33 have more variance, but are also obviously very beneficial. 
+
+ManufacturingProcess12 is interesting as well due to its binomial nature and that it was used so rarely. Its usuage should be encouraged more to understand its effects -- which appear to be very positive. 
+
+
+
+##Chapter 7
+7.2. Friedman (1991) introduced several benchmark data sets create by simulation. One of these simulations used the following nonlinear equation to create data:
+$$y = 10sin(\pi x_1 x_2) + 20(x_3 - 0.5)^2 +10x_4 + 5x_5 + N(0,\sigma^2)$$
+
+where the x values are random variables uniformly distributed between [0, 1] (there are also 5 other non-informative variables also created in the simulation). The package mlbench contains a function called mlbench.friedman1 that simulates these data:
+
+```{r 7.2A}
+#page 55 / 169
+library(mlbench)
+library(caret)
+set.seed(200)
+trainingData <- mlbench.friedman1(200, sd = 1) #We convert the 'x' data from a matrix to a data frame
+
+trainingData$x <-data.frame(trainingData$x)
+## Look at the data using
+featurePlot(trainingData$x, trainingData$y, plot = "scatter", type = c("p", "smooth"), color = "red") 
+#Dispersal and variance appear to increase with iteration -- simple regression line quickly loses shape. The early predictors are likely the most informative. 
+
+
+## This creates a list with a vector 'y' and a matrix
+## of predictors 'x'. Also simulate a large test set to 
+## estimate the true error rate with good precision:
+testData <- mlbench.friedman1(5000, sd = 1)
+testData$x <- data.frame(testData$x)
+str(trainingData)
+#Preprocess data
+
+#Create and stack training and test matrices for preprocessing
+trainingData.mx <- as.matrix(cbind(Y = trainingData$y, trainingData$x))
+testData.mx <- as.matrix(cbind(Y = testData$y, testData$x)) 
+TrainTest <- rbind(trainingData.mx, testData.mx)
+
+#Center and scale both matrices
+CentScal.TrTe <- preProcess(TrainTest,
+                          method = c("center", "scale"))
+
+training.CentScal <- predict(CentScal.TrTe, trainingData.mx)
+trainingCentScal <- data.frame(y = training.CentScal[,1])
+trainingCentScal$x <- data.frame(training.CentScal[,c(2:11)])
+
+test.CentScal <- predict(CentScal.TrTe, testData.mx)
+testCentScal <- data.frame(y = test.CentScal[,1])
+testCentScal$x <- data.frame(test.CentScal[,c(2:11)])
+
+#Separate BoxCox transform (no center or scaling)
+BC.TrTe <- preProcess(TrainTest,
+                          method = c("BoxCox"))
+
+training.BC <- predict(BC.TrTe, trainingData.mx)
+trainingBC <- data.frame(y = training.BC[,1])
+trainingBC$x <- data.frame(training.BC[,c(2:11)])
+
+test.BC <- predict(BC.TrTe, testData.mx)
+testBC <- data.frame(y = test.BC[,1])
+testBC$x <- data.frame(test.BC[,c(2:11)])
+```
+Tune several models on these data.
+
+K-Nearest Neighbors, using the book's example. The K-Nearest Neighbors approach predicts a new sample using the K-closest samples from the training set. Because data with larger predictor scales tend to be weighted heavier, I allowed both the preProcessing of the algorithm on top of the preprocessed versions of the training data.
+```{r 7.2B KNN}
+knnModel <- train(x = trainingBC$x,
+                   y = trainingData$y,
+                   method = "knn",
+                  preProc = c("center", "scale"), #allowing preprocessing during both data prep and model fitting
+                  tuneLength = 10) #10 fold cross-validation
+
+#The graph shows that K=15 neighbors gives the lowest RMSE
+plot(knnModel)
+
+#Predictions usin the test set data
+knnPred <- predict(knnModel, newdata = testBC$x)
+postResample(pred = knnPred, obs = testData$y)
+```
+The model selected K=15, as it had the lowest RMSe (3.15) of the other K sizes. Interestingly, the RMSE on the test set predictions is slightly lower (3.13), so we know the KNN model did not over fit, although it may have underfit compared to other models. 
+
+
+Neural Networks
+(I spent several hours trying to get the "train" function to work, but it continually gave me a very high RMSE) So, I used the version with a fixed size, manually pushing through the numbers to find the lowest RMSE. A size of 3 hidden units appears optimal (RMSE of 1.75, with a network of 10-3-1), with a decay of .01 (wich I also found manually) 
+```{r 7.2B NN}
+#Fitting first by choosing hidden number size
+library(nnet)
+
+nnetFit <- nnet(trainingBC$x, trainingData$y,
+                size = 4,
+                decay = 0.01,
+                linout = TRUE,
+                trace = F,
+                maxit = 500,
+                MaxNWts = 4 * (ncol(trainingBC$x) + 1) + 4 +1)
+
+nnetFit
+
+
+
+#At 2: 2.69 RMSE, .71 Rsquared
+#At 3: 1.75 RMSE, .87 Rsquared
+#At 4: 2.42 RMSE, .767 Rsquared
+#At 5: 2.533 RMSE, .76 Rsquared
+#At 6: 2.76 RMSE, .72 Rsquared
+
+nnetPredA <- predict(nnetFit, testBC$x)
+postResample(pred = nnetPredA, obs = testData$y)
+```
+
+MARS (138/155)
+For the MARS fit, I used the extended train code, which allows for modeling over degrees and pruning. Degrees (which control how many features can be cut together) is set at 1 and 2 should provide good accuracy. And, pruning (which removes unimportant features) is given a wide allowance to perform and find the optimal; set to a minimum of 2 and a max of 20. 
+
+The model will then find the lowest RMSE of these parameter combinations -- ultimately choosing a degree of 2 and a pruning of 12, with an RMSE of  1.248370.  
+```{r 7.2C MARS}
+library(earth)
+#tuning using external resampling
+marsGrid <- expand.grid(.degree = 1:2, .nprune = 2:20)
+set.seed(100)
+marsTuned <- train(trainingBC$x, trainingData$y,
+                   method = "earth",
+                   tuneGrid = marsGrid,
+                   trControl = trainControl(method = "cv"))
+
+summary(marsTuned)
+#Summary data shows that only x1 and x2 were combined for degree 2 fitting. Otherwise, x1 through x5 were used individually. 
+
+plotmo(marsTuned)
+#The plot confirms that only x1 through x5 had useful cuts, and contributed to the model. 
+
+#Predicting test data
+marsPredB <- predict(marsTuned, testBC$x)
+postResample(pred = marsPredB, obs = testData$y)
+#Predictions on the testa data have an 1.33 RMSE, which is notably higher than the resampling RMSE (1.24) and suggests some overfitting. 
+```
+
+SVM (157/)
+I used a basic model for the Support Vector Machines fitting. I used data that has gone through Box-Cox, and then allowed the algorithm to handle the centering and scaling. The "svmRadial" basis function is the default kernal function. I used a tuneLength (the range of cost values) of 7, only because the RMSE no longer improved after cost value = 4.
+```{r 7.2D SVM}
+library(e1071)
+library(kernlab)
+#Model estimating base values using resambling. 
+svmRTuned <- train(trainingBC$x, trainingData$y,
+                   method = "svmRadial",
+                   preProc = c("center", "scale"),
+                   tuneLength = 7,
+                   trControl = trainControl(method = "cv"))
+svmRTuned #high RMSE, low Rsquared
+
+#The model used 184 training set data points as support vectors (92% of training set). This suggests that as the data became increasingly dispersed with each additional created variable, the linear trend became less coherent and a growing amount of the data points were outside it's limits. 
+svmPred <- predict(svmRTuned, testBC$x)
+postResample(pred = svmPred, obs = testData$y)
+#The predictions give a similar RMSE (4.87) to the fitted model (4.807). 
+```
+Which models appear to give the best performance? Does MARS select the informative predictors (those named X1–X5)?
+
+Mars had the lowest RMSE and the best fit (.92 rsquared), with Neural Net in a close 2nd and KNN following in 3rd with a respectable RMSE and Rsquared. SVM (low Rsquared) trails far behind. 
+```{r 7.2E performance}
+#SVM: 4.9 RMSE, .21 Rsquared
+postResample(pred = svmPred, obs = testData$y)
+
+#KNN: 3.2 RMSE, .70 Rsquared
+postResample(pred = knnPred, obs = testData$y)
+
+#Neural Net: 2.02 RMSE, .85 Rsquared
+postResample(pred = nnetPredA, obs = testData$y)
+
+#Mars: 1.35 RMSE, .92 Rsquared
+postResample(pred = marsPredB, obs = testData$y)
+
+#The quick MARS algorithm selects x1-x5, but also x9, altho gives it very little importance. 
+varImp(marsTuned)
+
+#The MARS algorithm with resampling additionally gives a little importance to 6 and 8. 
+varImp(marsTuned)
+```
+
+7.5. Exercise 6.3 describes data for a chemical manufacturing process. Use the same data imputation, data splitting, and pre-processing steps as before and train several nonlinear regression models.
+
+Commentary and visualizations on these pre-processing steps is in HW6, removed here for brevity
+```{r}
+library(AppliedPredictiveModeling)
+library(impute)
+library(mice)
+library(corrplot)
+library(caret)
+set.seed(731)
+
+data(ChemicalManufacturingProcess)
+ChemDat <- ChemicalManufacturingProcess
+
+#Imputation
+ChemDat.Imp <- (impute.knn(as.matrix(ChemDat)))
+Chem.Imp.Df <- as.data.frame(ChemDat.Imp$data)
+
+#Split data
+N <- nrow(Chem.Imp.Df)
+n <- sample(1:N, 2 * N / 3, replace = F)
+
+Train <- Chem.Imp.Df[n,]
+TrainX <- Train[,2:ncol(Train)]
+TrainY <- Train[,1]
+dim(Train) #117 rows
+
+Test <- Chem.Imp.Df[-n,]
+TestX <- Test[,2:ncol(Test)]
+TestY <- Test[,1]
+
+#Apply BoxCox, centering, and scaling to training and data
+transR <- preProcess(TrainX, method = c("BoxCox", "center", "scale"))
+TrainX.trs <- predict(transR, TrainX)
+
+transE <- preProcess(TestX, method = c("BoxCox", "center", "scale"))
+TestX.trs <- predict(transE, TestX)
+
+#Apply just BoxCox and allow algorithms to perform centering and scaling
+transRBC <- preProcess(TrainX, method = "BoxCox")
+TrainX.bc <- predict(transRBC, TrainX)
+
+transEBC <- preProcess(TestX, method = "BoxCox")
+TestX.bc <- predict(transEBC, TestX)
+
+#Apply spacial sign to deal with outliers
+TrainX.trs.ss <- spatialSign(TrainX.trs)
+TestX.trs.ss <- spatialSign(TestX.trs)
+
+TrainX.bc.ss <- spatialSign(TrainX.bc)
+TestX.bc.ss <- spatialSign(TestX.bc)
+
+#Locating and removing highly correlated predictors:
+correlations <- cor(TrainX.trs.ss)
+highCorr <- findCorrelation(correlations, cutoff = .75)
+length(highCorr)
+TrainX.trs.ss.fil <- TrainX.trs.ss[, -highCorr]
+TrainX.pr <- as.data.frame(TrainX.trs.ss.fil) 
+TestX.trs.ss.fil <- TestX.trs.ss[, -highCorr]
+TestX.pr <- as.data.frame(TestX.trs.ss.fil)
+
+#Again for Box-Cox only
+correlationsBC <- cor(TrainX.bc.ss)
+highCorrBC <- findCorrelation(correlationsBC, cutoff = .75)
+length(highCorrBC)
+TrainX.bc.ss.fil <- TrainX.bc.ss[, -highCorrBC]
+TrainX.Bpr <- as.data.frame(TrainX.bc.ss.fil)
+TestX.bc.ss.fil <- TestX.bc.ss[, -highCorrBC]
+TestX.Bpr <- as.data.frame(TestX.bc.ss.fil)
+
+#Combined df
+fullTrain.pr <- TrainX.pr
+fullTrain.pr$Y <- TrainY
+```
+Training the models, first KNN. Again, I used a simple form of the algorithm here -- 10 fold cross-validation along with centering/scaling on Box-Cox'ed data.
+```{r}
+knnModel2a <- train(x = TrainX.pr,
+                   y = TrainY,
+                   method = "knn",
+                  preProc = c("center", "scale"),
+                  tuneLength = 10)
+knnModel2a #optimal model is k = 11, which has RMSE of 1.48, Rsquared of .39
+getTrainPerf(knnModel2a)
+#predicting test set data
+knnPred2a <- predict(knnModel2a, newdata = TestX.pr)
+postResample(pred = knnPred2a, obs = TestY) #test set rmse of 1.48, so KNN so not much differentiation between resampling and test fit
+```
+
+Neural Net
+This NN approach automatically fits size and decay to the mode. It uses a 3 fold cross-validation, only because my computer was having trouble processing higher values. We ended up with a resampling RMSE of 1.33, and an RMSE of 1.5 on test set data, so there was possibly some overfitting.
+```{r}
+#Fitting by choosing hidden number size
+nnet <- function(df, y){
+  
+              fitControl <- trainControl(method = "cv", 
+                                         number = 3, 
+                                         returnResamp = "all")
+              
+              nnetGrid <- expand.grid(.decay = c(0, 0.01, .1, .5),
+                                      .size = c(5:15),
+                                      .bag = FALSE)
+    
+                 return(train(df, y, 
+                              method = "avNNet", 
+                              tuneGrid = nnetGrid,
+                              trControl = fitControl,
+                              trace = FALSE,
+                              linout = TRUE))
+}
+#Fit the data
+nnet.fit <- nnet(TrainX.pr, TrainY)
+#Best tuning
+nnet.fit$bestTune
+#Performance on training data:
+getTrainPerf(nnet.fit)
+
+#Performance on test set data
+nnetPred <- predict(nnet.fit, newdata = TestX.pr)
+postResample(pred = nnetPred, obs = TestY)
+```
+
+MARS: I used a similar model as before, and again, it gave a very good fit, with resamplingRMSE of 1.27 and RSquared of .56. Although it may have overfit slightly, as the test fit came in slightly looser with 1.35 RMSE and .48 Rsquared. It used 7 of the 39 predictors, with no interactions, although one variable (Manufacturing02) was cut twice. 
+```{r 7.5a MARS}
+library(earth)
+#tuning using external resampling
+marsGrid2a <- expand.grid(.degree = 1:2, .nprune = 2:20)
+set.seed(100)
+marsTuned2a <- train(TrainX.pr, TrainY,
+                   method = "earth",
+                   tuneGrid = marsGrid2a,
+                   trControl = trainControl(method = "cv"))
+
+summary(marsTuned2a)
+plotmo(marsTuned2a)
+getTrainPerf(marsTuned2a) #1.27 RMSE, .56 RSquared
+#Predicting test data
+marsPredB <- predict(marsTuned2a, newdata =TestX.pr)
+postResample(pred = marsPredB, obs = TestY) #1.35
+```
+SVM: Similar model as before, it also resulted in a tuned model with a cost value of 4, with relatively higher RMSE (1.8) and less explainability (.14 Rsquared). 
+```{r 7.5a SVM}
+svmRTuned2a <- train(TrainX.pr, TrainY,
+                   method = "svmRadial",
+                   preProc = c("center", "scale"),
+                   tuneLength = 7,
+                   trControl = trainControl(method = "cv"))
+svmRTuned2a$bestTune #C=4, sigma = .02
+getTrainPerf(svmRTuned2a)# TrainedRMSE of 1.8
+svmPredB <- predict(svmRTuned2a, newdata = TestX.pr)
+postResample(pred = svmPredB, obs = TestY) #1.85 RMSE
+```
+
+(a) Which nonlinear regression model gives the optimal resampling and test set performance?
+
+MARS was again the strongest performer. Neural Net had a competitive resampling RMSE, but appeared to overfit, with a slightly higher test RMSE. KNN came in third and SVM a distant last.
+```{r}
+#KNN:
+#getTrainPerf(knnModel2a) #1.48 RMSE
+#postResample(pred = knnPred2a, obs = TestY) #test set rmse of 1.48
+
+##Neural Net:
+#getTrainPerf(nnet.fit) #1.33 RMSE
+#postResample(pred = nnetPred, obs = TestY) #1.5 RMSE
+
+#Mars:
+#getTrainPerf(marsTuned2a) #1.27 RMSE
+#postResample(pred = marsPredB, obs = TestY) #1.35
+
+#SVM:
+#getTrainPerf(svmRTuned2a)# TrainedRMSE of 1.8
+#postResample(pred = svmPredB, obs = TestY) #1.85 RMSE
+```
+(b) Which predictors are most important in the optimal nonlinear regression model? Do either the biological or process variables dominate the list? How do the top ten important predictors compare to the top ten predictors from the optimal linear model?
+```{r}
+topMars <- varImp(marsTuned2a)
+topMars
+```
+The manufacturing predictors dominate more -- among all of the nonlinear regression models-- than the linear regression models, interestingly. MARS used only one biological material. 
+
+
+(c) Explore the relationships between the top predictors and the response for the predictors that are unique to the optimal nonlinear regression model. Do these plots reveal intuition about the biological or process predictors and their relationship with yield?
+```{r}
+topLinear <- coefficients
+lineardf <- data.frame(coefficients)
+topMARS <- topMars$importance
+topLINEAR <- linearImp$importance
+linearNonLinearImp <- merge(topMARS, topLINEAR, by="row.names", all.x=TRUE)
+linearNonLinearImp[with(linearNonLinearImp, order(-Overall.x)),]
+#it looks like only manufacturingprocess39 is slightly unique to the nonlinear.
+
+MARSpreds <- rownames(topMARS)[1:7]
+limChemDat <- Chem.Imp.Df[colnames(Chem.Imp.Df) %in% MARSpreds]
+limChemDat$Yield <- Chem.Imp.Df$Yield
+
+par(mfrow = c(2,3))
+for (i in 1:(ncol(limChemDat)-1)) {
+  with(limChemDat, scatter.smooth(Yield, limChemDat[,i], xlab = "Yield" , 
+    main = names(limChemDat[i]), col="grey", ylab=names(limChemDat[i]), cex = 1.5))
+}
+
+
+```
+Maybe I came to the wrong end models, but only manufacturing process 39 was notably more important to MARS than to the regression model. Data is 39 is nearly perfectly flat and very condensed, which would be a very easy fit for MARS -- it wouldn't even need a cut. It might not offer great explanatory power in a regression, as the constants would be close to 0. It also has very little correlation (.035) to Yield, similar to the flat lines in process34 (.17 pearson).
+
+
+##Chapter 8
+HW# 8.1, 8.2, 8.3, 8.7
+
+8.1. Recreate the simulated data from Exercise 7.2:
+```{r} 
+library(mlbench)
+set.seed(200)
+simulated <- mlbench.friedman1(200, sd = 1)
+simulated <- cbind(simulated$x, simulated$y)
+simulated <- as.data.frame(simulated)
+colnames(simulated)[ncol(simulated)] <- "y"
+```
+
+(a) Fit a random forest model to all of the predictors, then estimate the
+variable importance scores:
+```{r}
+library(randomForest)
+library(caret)
+model1a <- randomForest(y ~ ., data = simulated, importance = TRUE, ntree = 1000)
+rfImp1 <- varImp(model1a, scale = TRUE)
+```
+
+Did the random forest model significantly use the uninformative predictors
+(V6 - V10)?
+```{r}
+rfImp1
+varImpPlot(model1a, type = 1)
+```
+The model is set to scale the importance scores to be between 0 and 100, so, V6-10 were the least used predictors.
+
+(b) Now add an additional predictor that is highly correlated with one of the
+informative predictors. For example:
+```{r}
+simulatedDup <- simulated
+simulatedDup$duplicate1 <- simulatedDup$V1 + rnorm(200) * .1
+cor(simulatedDup$duplicate1, simulatedDup$V1)
+```
+Fit another random forest model to these data. Did the importance score
+for V1 change? What happens when you add another predictor that is
+also highly correlated with V1?
+```{r}
+model2b <- randomForest(y ~ ., data = simulatedDup, importance = TRUE, ntree = 1000)
+rfImp2 <- varImp(model2b, scale = TRUE)
+rfImp1
+rfImp1 <- rbind(rfImp1, NA)
+cbind(rfImp1, rfImp2)
+```
+V1 is affected by the addition of the duplicate. Presumably, the trees are treating, and blindly spliting the duplicate and V1 as different variables, even though they represent the same variance. Therefore, it's picking one or the other, but not using both, and lowering their respective importance levels. 
+
+(c) Use the cforest function in the party package to fit a random forest model
+using conditional inference trees. The party package function varimp can
+calculate predictor importance. The conditional argument of that function
+toggles between the traditional importance measure and the modified
+version described in Strobl et al. (2007). Do these importances show the
+same pattern as the traditional random forest model?
+```{r}
+library(party)
+model1c <- cforest(y ~., data = simulated)
+model2c <- cforest(y ~., data = simulatedDup)
+
+cfImp1cTN <- varimp(model1c, conditional = TRUE) #without dup
+cfImp1cFN <- varimp(model1c, conditional = FALSE) #without dup
+cfImp1T <- append(cfImp1cTN, NA)
+cfImp1F <- append(cfImp1cFN, NA)
+cfImp2cTN <- varimp(model2c, conditional = TRUE) #with dup
+cfImp2cFN <- varimp(model2c, conditional = FALSE) #with dup
+
+combImp <- cbind(rfImp1, rfImp2, cfImp1T, cfImp1F, cfImp2cTN, cfImp2cFN)
+names(combImp) <- c("rfPure", "rfDup", "cfCondPure", "cfRegPure", "cfCondDup", "cfRegDup")
+combImp
+```
+The package docs say that the conditional version of the importance controls for correlations between predictor variables. Interestingly, the column "cfCondDup", which is the conditional trees with conditional importance and a duplicate row added, appears to with adjust for the correlations by reducing the importance of both correlated variables --V1 and the dup. Together their importance is about 4.3, compared to 5.3 for the conditional without the duplicate, and 8.5 for the regular conditional trees without conditional importance. However, it also reduces other variables as well, so maybe it is controlling for other correlations than just v1/dup, as well.
+
+
+(d) Repeat this process with different tree models, such as boosted trees and
+Cubist. Does the same pattern occur?
+```{r boosted}
+#boosted
+library(gbm)
+
+gbmModel1 <- gbm(y ~., data = simulated, distribution = "gaussian")
+gbmModel2 <- gbm(y ~., data = simulatedDup, distribution = "gaussian")
+summary.gbm(gbmModel1)
+summary.gbm(gbmModel2)
+
+```
+The duplicate value also hurts the gradient boosting machine results -- and actually gives some slight additional importance to V5, possibly to fill in for the variance now missing on V2 and V4. Unclear what is happening under the hood -- perhaps the gradient continued to search these variables to fill in a changed loss function.
+
+```{r cubist}
+#cubist
+library(Cubist)
+simX <- simulated[1:(ncol(simulated)-1)]
+simY <- simulated$y
+simXdup <- simulatedDup[c(1:(ncol(simulatedDup)-2),ncol(simulatedDup))]
+simYdup <- simulatedDup$y
+
+cubistModel1 <- cubist(simX, simY)
+cubistModel2 <- cubist(simXdup, simYdup)
+
+varImp(cubistModel1)
+varImp(cubistModel2)
+```
+The cubist model is able to dodge the duplicate data. There's so many processes in the cubist model that its hard to know for sure how this happened. My guess is somewhere in the committee component, the models may have several chances to choose between the duplicate or v1, and eventually v1 wins out. 
+
+8.2. Use a simulation to show tree bias with different granularities.
+```{r}
+library(rpart)
+#create vector of data of decreasing granularities. First is the response variable. 
+sim2 <- as.data.frame(cbind(runif(100, 1, 3000), floor(runif(100, 1,100)), floor(runif(100, 25,75)), floor(runif(100,50,60))))
+colnames(sim2) <- c("Y", "most", "middle", "least")
+
+#run regression tree
+rpartTree <- rpart(Y~., sim2 )
+
+#importance
+varImp(rpartTree)
+
+
+library(partykit)
+plot(as.party(rpartTree))
+```
+I created a vector of data with decreasing granularities, from the the most distinct values to the least. Looking at the importance scores, the "most" data was the most important, with "least" the least important. 
+
+Looking at actual tree, we can see that most dominates as well. 
+
+
+8.3. In stochastic gradient boosting the bagging fraction and learning rate
+will govern the construction of the trees as they are guided by the gradient.
+Although the optimal values of these parameters should be obtained
+through the tuning process, it is helpful to understand how the magnitudes
+of these parameters affect magnitudes of variable importance. Figure 8.24
+provides the variable importance plots for boosting using two extreme values
+for the bagging fraction (0.1 and 0.9) and the learning rate (0.1 and 0.9) for
+the solubility data. The left-hand plot has both parameters set to 0.1, and
+the right-hand plot has both set to 0.9:
+
+
+(a) Why does the model on the right focus its importance on just the first few
+of predictors, whereas the model on the left spreads importance across
+more predictors?
+
+The bagging fractions could be partly responsible, because lower bagging fractions could allow other variables to be modeled separately from the most explanatory variables, therefore giving them some possibly undue importance. The larger bagging fractions would more often have the most explanatory variables involved and enjoy perhaps too much importance. 
+
+The learning rate could also be responsible, because lower learning rates presumably allow for more iterations, in which each of the less explanatory variables would have a chance to shine. Higher learning rates may reach the goals of the model quicker, with less iterations, by relying more heavily on the most explanatory variables.
+
+(b) Which model do you think would be more predictive of other samples?
+
+My guess is that the .1 model would be more predictive, since the .9 model gives overwhelming weight that the top 3-4 variables, while missing the 2nd most important variable on the .1 model (HydrophilicFactor). And just to explain the other side, the .1 model could be giving undue weight to far too many duplicative variables, and missing the explanatory power of the top 3-4. Still, I'd rather go with the .1.
+
+(c) How would increasing interaction depth affect the slope of predictor importance
+for either model in Fig. 8.24?
+
+It should have a mediating effect on both slopes by giving each variable both more spotlight and competition. So for the .9 tree, it will make the slope less step, and for the .1 tree, more steep. That's what appears to be happening in the below example as well. 
+```{r}
+library(gbm)
+library(caret)
+gbmGrid <- expand.grid(n.trees = seq(100, 1000, by = 50), interaction.depth = 1, shrinkage = c(0.01, 0.1), n.minobsinnode = 10)
+set.seed(111)
+c3gbmTune <- train(simX, simY,
+                   method = "gbm",
+                   tuneGrid = gbmGrid,
+                   verbose = FALSE)
+
+plot(varImp(c3gbmTune), main = "1")
+
+gbmGrid3 <- expand.grid(n.trees = seq(100, 1000, by = 50), interaction.depth = 3, shrinkage = c(0.01, 0.1), n.minobsinnode = 10)
+set.seed(111)
+c3gbmTune3 <- train(simX, simY,
+                   method = "gbm",
+                   tuneGrid = gbmGrid3,
+                   verbose = FALSE)
+
+plot(varImp(c3gbmTune3), main = "3")
+```
+
+8.7. Refer to Exercises 6.3 and 7.5 which describe a chemical manufacturing
+process. Use the same data imputation, data splitting, and pre-processing
+steps as before:
+```{r 7.5a}
+library(AppliedPredictiveModeling)
+library(impute)
+library(mice)
+library(corrplot)
+library(caret)
+library(e1071)
+library(rpart)
+set.seed(731)
+data(ChemicalManufacturingProcess)
+ChemDat <- ChemicalManufacturingProcess
+
+#Imputation
+ChemDat.Imp <- (impute.knn(as.matrix(ChemDat)))
+Chem.Imp.Df <- as.data.frame(ChemDat.Imp$data)
+
+#Split data
+N <- nrow(Chem.Imp.Df)
+n <- sample(1:N, 2 * N / 3, replace = F)
+
+Train <- Chem.Imp.Df[n,]
+TrainX <- Train[,2:ncol(Train)]
+TrainY <- Train[,1]
+
+Test <- Chem.Imp.Df[-n,]
+TestX <- Test[,2:ncol(Test)]
+TestY <- Test[,1]
+
+#Apply BoxCox, centering, and scaling to training and data
+transR <- preProcess(TrainX, method = c("BoxCox", "center", "scale"))
+TrainX.trs <- predict(transR, TrainX)
+
+transE <- preProcess(TestX, method = c("BoxCox", "center", "scale"))
+TestX.trs <- predict(transE, TestX)
+
+#Apply just BoxCox and allow algorithms to perform centering and scaling
+transRBC <- preProcess(TrainX, method = "BoxCox")
+TrainX.bc <- predict(transRBC, TrainX)
+
+transEBC <- preProcess(TestX, method = "BoxCox")
+TestX.bc <- predict(transEBC, TestX)
+
+#Apply spacial sign to deal with outliers
+TrainX.trs.ss <- spatialSign(TrainX.trs)
+TestX.trs.ss <- spatialSign(TestX.trs)
+
+TrainX.bc.ss <- spatialSign(TrainX.bc)
+TestX.bc.ss <- spatialSign(TestX.bc)
+
+#Locating and removing highly correlated predictors:
+correlations <- cor(TrainX.trs.ss)
+highCorr <- findCorrelation(correlations, cutoff = .75)
+length(highCorr)
+TrainX.trs.ss.fil <- TrainX.trs.ss[, -highCorr]
+TrainX.pr <- as.data.frame(TrainX.trs.ss.fil) 
+TestX.trs.ss.fil <- TestX.trs.ss[, -highCorr]
+TestX.pr <- as.data.frame(TestX.trs.ss.fil)
+
+#Combined df
+fullTrain.pr <- TrainX.pr
+fullTrain.pr$Y <- TrainY
+
+#Again for Box-Cox only
+correlationsBC <- cor(TrainX.bc.ss)
+highCorrBC <- findCorrelation(correlationsBC, cutoff = .75)
+length(highCorrBC)
+TrainX.bc.ss.fil <- TrainX.bc.ss[, -highCorrBC]
+TrainX.Bpr <- as.data.frame(TrainX.bc.ss.fil)
+TestX.bc.ss.fil <- TestX.bc.ss[, -highCorrBC]
+TestX.Bpr <- as.data.frame(TestX.bc.ss.fil)
+```
+
+Train several tree-based models:
+```{r}
+#single CART trees
+library(rpart)
+rpartTree <- rpart(Y~., fullTrain.pr ) #basic tuning
+
+rpartTuneCP <- train(TrainX.pr, TrainY, #tuning over complexity paramater
+                   method = "rpart",
+                   tuneLength = 9,
+                   trControl = trainControl(method = "cv"))
+
+rpartTuneMaxDepth <- train(TrainX.pr, TrainY, #tuning over max depth
+                   method = "rpart2",
+                   tuneLength = 9,
+                   trControl = trainControl(method = "cv"))
+
+#single conditional inference trees
+ctreeTuneMincrit <- train(TrainX.pr, TrainY, #tuning over mincriterion (statistical criterion to cont splitting)
+                   method = "ctree",
+                   tuneLength = 9,
+                   trControl = trainControl(method = "cv"))
+
+ctreeTuneMaxDepth <- train(TrainX.pr, TrainY, #tuning over max depth
+                   method = "ctree2",
+                   tuneLength = 9,
+                   trControl = trainControl(method = "cv"))
+
+#Regression Model Trees
+m5Tune <- train(TrainX.pr, TrainY,
+                method = "M5",#both trees and rules based methods
+                trControl = trainControl(method = "cv"),
+                control = Weka_control(M=9))
+
+#Bagged Trees
+baggedTree <- Bagging(Y ~., data = fullTrain.pr)
+
+#Random Forest
+library(randomForest)
+rfModel <- randomForest(TrainX.pr, TrainY,
+                        importance = TRUE,
+                        ntrees = 1000,
+                        mtry = (ncol(TrainX.pr)/3))
+
+#Boosted Trees
+gbmGrid <- expand.grid(n.trees = seq(100, 1000, by = 50), 
+                       interaction.depth = 3, 
+                       shrinkage = c(0.01, 0.1), 
+                       n.minobsinnode = 10)
+set.seed(100)
+gbmTune <- train(TrainX.pr, TrainY,
+ method = "gbm",
+ tuneGrid = gbmGrid,
+ verbose = FALSE)
+
+#Cubist
+cubistMod <- cubist(TrainX.pr, TrainY)
+```
+
+(a) Which tree-based regression model gives the optimal resampling and test
+set performance?
+```{r}
+library(gbm)
+#single CART trees
+rpartTreePred <- predict(rpartTree, TestX.pr)#basic tuning 
+RMSE(rpartTreePred, TestY) #1.75 RMSE
+
+rpartTuneCPPred <- predict(rpartTuneCP, TestX.pr) #tuning over complexity paramater
+min(rpartTuneCP$results$RMSE) #1.48 resample RMSE
+RMSE(rpartTuneCPPred, TestY) #1.654
+
+rpartTuneMaxDepthPred <- predict(rpartTuneMaxDepth, TestX.pr)  #tuning over max depth
+min(rpartTuneMaxDepth$results$RMSE) #1.517 resample RMSE
+RMSE(rpartTuneMaxDepthPred, TestY) #1.73
+
+#single conditional inference trees
+ctreeTuneMincritPred <- predict(ctreeTuneMincrit, TestX.pr) #tuning over mincriterion
+min(ctreeTuneMincrit$results$RMSE) #1.544 resample RMSE
+RMSE(ctreeTuneMincritPred, TestY) #1.73
+
+ctreeTuneMaxDepthPred <- predict(ctreeTuneMaxDepth, TestX.pr)  #tuning over max depth
+min(ctreeTuneMaxDepth$results$RMSE) #1.48
+RMSE(ctreeTuneMaxDepthPred, TestY) #1.93
+
+#model trees
+m5Tune #resampled RMSE of 1.42 (smoothed, not pruned)
+m5pred <- predict(m5Tune, TestX.pr)
+postResample(m5pred, TestY) #test set RMSE of 1.51
+
+#Bagged Trees
+baggedTreePred <- predict(baggedTree, TestX.pr)
+RMSE(baggedTreePred, TestY) #1.54
+
+#Random Forest
+rfModelPred <- predict(rfModel, TestX.pr) 
+rfModel #resampling MSE of 1.69 = 1.3 RMSE
+RMSE(rfModelPred, TestY) #1.38 Test RMSE
+
+#Boosted Trees
+min(gbmTune$resample$RMSE) #resampling RMSE = 1.08!
+gbmTunePred <- predict(gbmTune, TestX.pr)
+RMSE(gbmTunePred, TestY) #Test RMSE of 1.39
+
+#Cubist
+cubistModPred <- predict(cubistMod, TestX.pr)
+RMSE(cubistModPred, TestY) #1.45 RMSE, not bad!
+```
+Boosted Trees had, by far, the lowest resampling RMSE, of 1.08. I suspect that might suggest some overfitting, which boosted can be capable of doing. 
+
+Random Forest and Boosted give very similar RMSE's (1.38 and 1.39), respectively. This is not an unexpected outcome, I believe both are the most popular. Cubist came in just above, at 1.45.
+
+
+(b) Which predictors are most important in the optimal tree-based regression
+model? Do either the biological or process variables dominate the list?
+How do the top 10 important predictors compare to the top 10 predictors
+from the optimal linear and nonlinear models?
+```{r}
+#Random Forest
+varImpPlot(rfModel, type = 2, cex = .5, main = "RandomForest")
+varImp(rfModel)
+#Boosted Trees
+varImp(gbmTune)
+
+#creating data.frame of past variable importances by top model
+topLinear <- coefficients
+lineardf <- data.frame(coefficients)
+topMARS <- topMars$importance
+topLINEAR <- linearImp$importance
+
+gbmTop <- (varImp(gbmTune))
+gbmImp <- gbmTop$importance
+colnames(gbmImp) <- "GBM"
+
+linearNonLinearImp <- merge(topMARS, topLINEAR, by="row.names", all.x=TRUE)
+names(linearNonLinearImp) <- c("process", "MARS", "Linear")
+row.names(linearNonLinearImp) <- linearNonLinearImp$process
+linNonLinTrees <- merge(linearNonLinearImp, gbmImp, by = "row.names", all.x=TRUE)
+
+linNonLinTrees[with(linNonLinTrees, order(-GBM)),]
+
+
+```
+The most important processes are ManufacturingProcesses 09, 17, 36 and BiologicalMaterial 03.
+While the manufacturing processes have the two strongest predictors, biological comes in at 3rd and 5th, so Manufacturing has an advantage -- but not dominate, especially considering the lopsided ratio of Manufacturing to Biological variables tested. 
+
+Interestingly, GBM's most important variables were more similar to the top linear model than MARS. I presume this is because of GBM's additive method, that attempts to squeeze the most explanatory variance out of each variable, while non-linear regression focuses on only a few. 
+
+(c) Plot the optimal single tree with the distribution of yield in the terminal
+nodes. Does this view of the data provide additional knowledge about the
+biological or process predictors and their relationship with yield?
+```{r}
+library(partykit)
+plot(as.party(rpartTuneCP$finalModel))
+```
+The plot definitely gives the results a different perspective. While before we gave most of the importance to a few manufacturing processes, we can see here that a few manufacturing processes impact most of the terminal nodes, biological materials play an equal or greater role in partitioning the data--especially from node-to-node-- and accounting for the variance.
+
+
+##Recommender Systems
+Imagine 10000 receipts sitting on your table. Each receipt represents a transaction with items that were purchased. The receipt is a representation of stuff that went into a customer's basket - and therefore 'Market Basket Analysis'.
+
+That is exactly what the Groceries Data Set contains: a collection of receipts with each line representing 1 receipt and the items purchased. Each line is called a transaction and each column in a row represents an item.
+
+Here is the dataset = GroceryDataSet.csv (comma separated file)
+
+You assignment is to use R to mine the data for association rules.  You should report support, confidence and lift and your top 10 rules by lift.  Turn in as you would the other problems from HA and KJ.  Due 12/12/17 with the packaged set, HW #2.
+
+```{r import}
+library(arules)
+library(arulesViz)
+library(datasets)
+data(Groceries)
+```
+
+Apriori item frequency plot for top 20 items; 
+list is topped by whole milk, followed by veggies, rolls, and soda
+```{r data viz}
+itemFrequencyPlot(Groceries, topN=20, type="absolute")
+```
+
+Mine first rules:
+1. Pass in the min support (.001) and min confidence (.8)
+```{r first rules}
+rules <- apriori(Groceries, parameter = list(supp = .001, conf = .8))
+```
+2. List top 10 rules
+```{r list top rules}
+options(digits=2)
+inspect(rules[1:10])
+```
+Rules are very intuitive, especially the top 3 -- beer is likely to be bought with other alcoholic beverages (lift of 11.2 is especially high here, suggesting that the target customers are buying a narrow range of products -- preparing for a social gathering). And cereals are rarely eaten without milk -- although the lift is lower here, suggesting that these products are often bought within a large context, like sunday family grocery shopping. Further, there's less confidence in the yogurt, cereals grouping, presumably because yogurts can be eaten without milk. However, there's less support for the curd/cereals group, presumably because fewer people buy curds than yogurt. 
+
+We also see very high confidence for rice, sugar paired with whole milk -- like indicating a "make it from scratch" type chef reloading the pantry. 
+
+Summary information
+```{r summary info}
+summary(rules)
+```
+1. 400 total rules generated
+2. More than half (56%) of all rules are 4 items in length, with 5 item lengths occurring roughly one-third of the time (34%)
+3. The quality measures are obviously a little skewed, since we limited the model to 80% confidence. However, it is interesting to see that, with the exception of beer/wine runs, there are no major outliers within lift or confidence. Interested in this .00315 support level though...
+
+Explore higher support levels out of curiosity
+```{r high support levels}
+highsupport <- sort(rules, by="support", decreasing = TRUE)
+inspect(highsupport[1:10])
+```
+Here we see the top support focused on a large left set matched up with a synomymous, and equally common, right item (fruit/veggies with more veggies). Other relatively high supports match up common ingredients with whole milk. 
+
+##Finally, to sort for the top 10 rules by lift
+```{r top lift levels}
+highlift <- sort(rules, by="lift", decreasing = TRUE)
+inspect(highlift[1:10])
+```
+The top lift rules have exceedingly higher confidence rates than expected because the left hand side sets are matched to similar, if not identical, right hand sets -- although often with some complementary ingredients mixed into the left hand set.

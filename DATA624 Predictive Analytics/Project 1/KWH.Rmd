@@ -1,0 +1,212 @@
+---
+title: "ResidentialCustomerForecast"
+author: "Andrew Goldberg"
+date: "10/16/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Import and Transfom 
+```{r p2}
+library(dplyr)
+library(lubridate)
+
+dat <- read.csv("https://raw.githubusercontent.com/aagoldberg/Work/master/ResidentialCustomerForecastLoad-624.csv")
+#Create time series
+ts.KWH <- ts(dat$KWH, start=c(1998, 1), end=c(2013,12), frequency = 12)
+
+#Basic data hygiene
+plot(ts.KWH) #looks like one clear outlier
+summary(ts.KWH) #and 1 NA
+
+#Modeling NA
+NA.pos <- which(is.na(ts.KWH))
+upto.NA <- ts.KWH[1:NA.pos]
+NA.train.end <- time(upto.NA)[length(upto.NA)-1]
+NA.train <- window(upto.NA,end=NA.train.end)
+NA.fit <- Arima(NA.train)
+NA.fc <- forecast(NA.fit,h=1)
+ts.KWH[NA.pos] <- as.integer(NA.fc$mean)
+
+#Modeling outlier
+outlier.pos <- which(ts.KWH == 770523)
+upto.outlier <- ts.KWH[1:outlier.pos]
+outlier.train.end <- time(upto.outlier)[length(upto.outlier)-1]
+outlier.train <- window(upto.outlier,end=outlier.train.end)
+outlier.fit <- auto.arima(outlier.train, seasonal=TRUE)
+outlier.fc <- forecast(outlier.fit,h=1)
+plot(outlier.fc)
+ts.KWH[outlier.pos] <- as.integer(outlier.fc$mean)
+
+#Plot with modeled NA and outlier
+plot(ts.KWH)
+
+#Check if box-cox transform is helpful
+lambdaBC <- BoxCox.lambda(ts.KWH) #non trivial lambda
+bc.KWH <- BoxCox(ts.KWH, lambdaBC)
+
+#Examine new plots
+tsdisplay(bc.KWH)
+
+ndiffs(bc.KWH) #says one difference
+
+tsdisplay(diff(bc.KWH)) #looks ok
+kpss.test(diff(bc.KWH)) #passes, I believe, since it says "p-value greater than printed p-value"
+adf.test(diff(bc.KWH)) #passes
+```
+
+#STL Decomposition
+```{r STL KWH}
+getrmseSTL <- function(x,h,t,s)
+{
+  train.end <- time(x)[length(x)-h]
+  test.start <- time(x)[length(x)-h+1]
+  train <- window(x,end=train.end)
+  test <- window(x,start=test.start)
+  fit <- stl(train, t.window=t, s.window= s, robust=TRUE)
+  fcast <- forecast(fit, method="naive")
+  return(accuracy(fcast,test)[2,"RMSE"])
+}
+getrmseSTL(ts.KWH, 12, 7, "periodic") #1133616
+getrmseSTL(ts.KWH, 12, 4, "periodic") #1163481
+getrmseSTL(ts.KWH, 12, 4, 7) #1132799
+getrmseSTL(ts.KWH, 12, 12, 4) #1047176 #winner
+
+ts.KWH.stl <- stl(ts.KWH, t.window=12, s.window=4, robust=TRUE)
+plot(ts.KWH.stl)
+```
+#STL Decomposition
+```{r STL ATM1}
+getrmseSTL <- function(x,h,t,s)
+{
+  train.end <- time(x)[length(x)-h]
+  test.start <- time(x)[length(x)-h+1]
+  train <- window(x,end=train.end)
+  test <- window(x,start=test.start)
+  fit <- stl(train, t.window=t, s.window= s, robust=TRUE)
+  fcast <- forecast(fit, method="naive")
+  return(accuracy(fcast,test)[2,"RMSE"])
+}
+getrmseSTL(ts.KWH, 12, 7, "periodic") #1133616
+getrmseSTL(ts.KWH, 12, 4, "periodic") #1163481
+getrmseSTL(ts.KWH, 12, 4, 7) #1132799
+getrmseSTL(ts.KWH, 12, 12, 4) #1047176 #winner
+
+ts.KWH.stl <- stl(ts.KWH, t.window=12, s.window=4, robust=TRUE)
+plot(ts.KWH.stl)
+```
+
+#Holt-Winters Seasonal
+```{r Holt-Winters KWH}
+hw.StSp <- ets(ts.KWH, model="ZZZ", lambda=lambdaBC)
+#state space model selection suggests an MNM model (additive errors, additive trend, additive seasonality)
+
+hw.KWH <- window(ts.KWH, t.window=12, s.window=4)
+
+hw.A <- hw(hw.KWH,seasonal="additive", lambda=lambdaBC)
+hw.M <- hw(hw.KWH,seasonal="multiplicative")
+hw.DM <- hw(hw.KWH,seasonal="multiplicative", Damped = TRUE)
+
+#ATM Exponential Smoothing model results:
+A.fit <- hw.A$model[2:6]
+M.fit <- hw.M$model[2:6]
+DM.fit <- hw.DM$model[2:6]
+SS.fit <- hw.StSp[2:6]
+KWH.expfit <- rbind.data.frame(Additive = A.fit, Multiplicative = M.fit, Damped_Multi = DM.fit, StateSpace = SS.fit)
+KWH.expfit <- KWH.expfit %>% mutate(rmse = sqrt(mse))
+row.names(KWH.expfit) <- c("Additive", "Mutliplicative", "DampedMultiplicative", "StateSpace")
+KWH.expfit #additive model looks best
+
+getrmseHW <- function(x,h,model)
+{
+  train.end <- time(x)[length(x)-h]
+  #print(train.end)
+  test.start <- time(x)[length(x)-h+1]
+  #print(test.start)
+  train <- window(x,end=train.end)
+  #print(train)
+  test <- window(x,start=test.start)
+  #print(test)
+  if(model == "additive"){fit5 <- hw(train,seasonal = "additive", h=h)}
+  if(model == "multiplicative"){fit5 <- hw(train, seasonal="multiplicative", h=h)}
+  if(model == "damped"){fit5 <- hw(train,seasonal="multiplicative", Damped = TRUE, h=h)}
+  if(model == "statespace"){
+    fitets <- ets(train, model="ZZZ",lambda=lambdaBC)
+    fit5 <- forecast(fitets, h=h)}
+  #print(str(fit5))
+  #fc <- forecast(fit,h=h)
+  return(accuracy(fit5,test)[2,"RMSE"])
+}
+getrmseHW(hw.KWH, 12, "additive") #1034801
+getrmseHW(hw.KWH, 12, "multiplicative") #947832
+getrmseHW(ts.KWH, 12, "damped") #947832
+getrmseHW(hw.KWH, 12, "statespace") #1049509
+
+#The additive models with box-cox performs better on aic, aicc and rmse tests, yet the mutliplicative models marginally fit the data better (box-cox appears to also hurt here). I'll go with the additive, in concerns of overfitting. 
+```
+
+#Seasonal Arima modeling
+```{r Arima}
+#Looks like seasonal and monthly seasonality (sAR(2)) with one seasonal base trend (sMA(1)) and 1-2 non-seasonal trends (MA(2))
+
+#Check auto-arima for baseline model
+saa.KWH <- auto.arima(ts.KWH, lambda = lambda, stepwise=FALSE, approximation=FALSE) #auto-arima says (0,0,3)(2,1,0)
+saa.KWH$aicc #-1510 aicc
+
+#Check if I can manually improve: all models have similar aicc
+sa103210 <- Arima(ts.KWH, order=c(1,0,3), seasonal=c(2,1,0), lambda = lambda, include.drift = TRUE) #-1508 aicc: 
+sa203210 <- Arima(ts.KWH, order=c(2,0,3),seasonal=c(2,1,0), lambda = lambda, include.drift = TRUE) #-1510 aicc: 
+sa203310 <- Arima(ts.KWH, order=c(2,0,3),seasonal=c(3,1,0), lambda = lambda, include.drift = TRUE) #-1509 aicc: 
+sa203410 <- Arima(ts.KWH, order=c(2,0,3),seasonal=c(4,1,0), lambda = lambda, include.drift = TRUE) #-1504 aicc: 
+
+res.KWH.a <- residuals(saa.KWH)
+tsdisplay(res.KWH.a) #both ACF and PACF have a slightly significant spike early on. 
+
+res.KWH.sa203310 <- residuals(sa203310)
+tsdisplay(res.KWH.sa203310) #spikes are no longer officially significant. 
+
+Box.test(res.KWH.sa203310, lag=36, fitdf=8, type="Ljung") #passes box-ljung test
+
+#Now check RMSEs
+getrmse <- function(x,h,...)
+{
+  train.end <- time(x)[length(x)-h]
+  test.start <- time(x)[length(x)-h+1]
+  train <- window(x,end=train.end)
+  test <- window(x,start=test.start)
+  fit <- Arima(train,...)
+  fc <- forecast(fit,h=h)
+  return(accuracy(fc,test)[2,"RMSE"])
+}
+
+getrmse(ts.KWH,h=12,order=c(0,0,3),seasonal=c(2,1,0),lambda=lambda, include.drift=TRUE) #948448
+getrmse(ts.KWH,h=12,order=c(1,0,3),seasonal=c(2,1,0),lambda=lambda, include.drift=TRUE) #945567
+getrmse(ts.KWH,h=12,order=c(2,0,3),seasonal=c(2,1,0),lambda=lambda, include.drift=TRUE) #933451 
+getrmse(ts.KWH,h=12,order=c(2,0,3),seasonal=c(3,1,0),lambda=lambda, include.drift=TRUE) #931248 
+getrmse(ts.KWH,h=12,order=c(2,0,3),seasonal=c(4,1,0),lambda=lambda, include.drift=TRUE) #919864 #best
+
+#while (203)(410) has the best rmse, I'm a little worried about overfitting, so going with (203)(310) with drift
+
+
+```
+#Model Choice and Forecasting
+
+```{r model choice}
+#STL:
+ts.KWH.stl <- stl(ts.KWH, t.window=12, s.window=4, robust=TRUE) #RMSE 1047176
+plot(ts.KWH.stl)
+
+#Holt-Winters Seasonal (additive)
+hw.A <- hw(hw.KWH,seasonal="additive", lambda=lambdaBC) #RMSE 1034801
+
+#Seasonal Arima
+sa203410 <- Arima(ts.KWH, order=c(2,0,3),seasonal=c(4,1,0), lambda = lambda, include.drift = TRUE) #RMSE 919864
+
+#Choosing Arima, which has the best RMSE
+hw.Arima.forecast <- forecast(sa203410, h=12)
+
+write.csv(hw.Arima.forecast, file="KWHfcast.csv")
+```

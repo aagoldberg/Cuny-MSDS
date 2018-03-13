@@ -1,0 +1,94 @@
+---
+title: "Data624 Project 1, Part A"
+author: "Andrew Goldberg"
+date: "10/6/2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##have to upload data to github !!
+```{r data}
+library(dplyr)
+library(lubridate)
+dat <- read.csv("/Users/andrew/Documents/School/predictive analytics/Project 1/attachments (3)/ATM624Data - Copy.csv")
+str(dat)
+str(dat)
+summary(dat)
+head(dat)
+
+#create day of year number
+#dat$FormDate <- as.Date(dat$DATE, format = "%m/%d/%Y %I:%M:%S %p")
+#dat$DayNum <- yday(dat$FormDate)
+#atmData <- dat[,c('ATM', 'Cash', 'DayNum')]
+#str(atmData)
+
+
+atm1 <- dat %>% filter(ATM == 'ATM1')
+atm2 <- dat %>% filter(ATM == 'ATM2')
+atm3 <- dat %>% filter(ATM == 'ATM3')
+atm4 <- dat %>% filter(ATM == 'ATM4')
+
+#create time series vector
+atm1TS <- ts(atm1$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+atm2TS <- ts(atm2$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+atm3TS <- ts(atm3$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+atm4TS <- ts(atm4$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+
+fit1 <- stl(atm1TS, s.window=7)
+plot(fit1)
+
+ets(atm1TS, model="ZZZ")
+ets(atm2TS, model="ZZZ")
+ets(atm3TS, model="ZZZ")
+ets(atm4TS, model="ZZZ")
+```
+
+```{r data explore}
+atm1TS <- ts(atm1$Cash, start)
+
+
+plot(atm1TS)
+plot(atm2TS)
+plot(atm3TS)
+plot(atm1TS)
+
+fit1 <- stl(atm1TS, s.window=7)
+fit1b <- decompose(atm1TS, type="multiplicative")
+plot(fit1b)
+#atmTS
+
+#str(dat)
+
+#head(dat)
+#str(dat)
+#atm1 <- atmData %>% filter(ATM == 'ATM1')
+#atm2 <- dat %>% filter(ATM == 'ATM2')
+#atm3 <- dat %>% filter(ATM == 'ATM3')
+#atm4 <- dat %>% filter(ATM == 'ATM4')
+
+#plot(atm1$DATE, atm1$Cash)
+#fit1 <- lm(DATE ~ Cash, data=atm1)
+#abline(fit1)
+#str(atm1)
+#strftime(atm1$DATE[1], format = "%j")
+#yday(atm1$DATE[1])
+#yday(Sys.time())
+#atm1$FormatDate <- as.Date(atm1$DATE, format = "%m/%d/%Y %I:%M:%S %p")
+#atm1$DayNum <- yday(atm1$FormatDate)
+#yday(atm1$FormatDate)
+
+
+
+stlFit1 <- stl(atm1, s.window=7)
+
+atm1TS <- ts(atm1$Cash, start=c())
+plot(atm2$DATE, atm2$Cash)
+plot(atm3$DATE, atm3$Cash)
+plot(atm4$DATE, atm4$Cash)
+
+fit1b <- decopose()
+```

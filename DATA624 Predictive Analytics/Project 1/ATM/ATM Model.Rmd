@@ -1,0 +1,484 @@
+---
+title: "Data624 Project 1, Part A"
+author: "Andrew Goldberg"
+date: "10/6/2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##have to upload data to github !!
+
+```{r data}
+library(dplyr)
+library(lubridate)
+dat <- read.csv("/Users/andrew/Documents/School/predictive analytics/Project 1/attachments (3)/ATM624Data - Copy.csv")
+str(dat)
+summary(dat) #15 NA's, but 14 are from empty rows
+```
+#Data Transformation
+```{r Trans}
+#split into invidual atm's
+atm1 <- dat %>% filter(ATM == 'ATM1')
+atm2 <- dat %>% filter(ATM == 'ATM2')
+atm3 <- dat %>% filter(ATM == 'ATM3')
+atm4 <- dat %>% filter(ATM == 'ATM4')
+
+#convert to time series
+atm1TS <- ts(atm1$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+atm2TS <- ts(atm2$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+atm3TS <- ts(atm3$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+atm4TS <- ts(atm4$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+
+summary(atm1TS)
+summary(atm2TS) #has a null
+summary(atm3TS)
+summary(atm4TS)
+
+#impute into atm2
+library(forecast)
+library(imputeTS)
+
+atm2TS <- na.interpolation((atm2TS))
+
+any(atm1TS == 0)
+any(atm2TS == 0) #has zero
+any(atm3TS == 0) #has zero
+any(atm4TS == 0)
+
+#replace zeros (not entirely sure what to do with 0's, so setting it to 1, which is the smallest integer...)
+atm2TS[atm2TS == 0] <- 1
+atm3TS[atm3TS == 0] <- 1
+```
+#Data Exploration
+```{r Explore}
+#plot of each ATM usage
+splitAtm <- cbind(atm1TS, atm2TS, atm3TS, atm4TS)
+plot(splitAtm, main = "Individual ATM Usage", ylab = "hundreds of dollars")
+
+#Atm 3 appears to be new, with data for only the last few periods. I will explore using more sophisticated techniques here, but my hunch is that a basic naive forecast may be most appropriate. 
+
+#Atm 1 and 2 saw the most usage, with clear weekly, and potentially seasonal or monthly, trends. Due to the seasonality component and daily data, STL should be the best decomposition technique here, although the more sophisticated X-12-Arima method may also be appropriate, but the book doesn't go into details, and I unfortunately don't have the time to explore this further. 
+
+#Atm 4 saw much smaller deposits, with one large spike towards the end of the year. Unlikely that there is a robust seasonality component here, although the model will need to handle the outlier data. 
+
+
+#STL decomposition
+
+#ATM 1
+atm1Decomp <- stl(atm1TS, t.window=7, s.window=7, robust=TRUE) 
+plot(atm1Decomp, main = "ATM 1 Decomposition")
+#Clear seasonal pattern -- appears to be less usage in the winter, large downward spikes on weekly trends, perhaps closed on some days. The season trend appears to be changing proportional to the level, so a mutiplicative method is likely to be the best fit. 
+atm12Decomp <- stl(atm1TS2, t.window=7, s.window=7, robust=TRUE) 
+plot(atm12Decomp, main = "ATM 1 Decomposition")
+
+#ATM 2
+atm2Decomp <- stl(atm2TS, t.window=7, s.window=4, robust=TRUE) 
+plot(atm2Decomp, main = "ATM 2 Decomposition")
+#Clear seasonal pattern -- appears to be slightly less usage in the winter, both high and low weekly trend spikes. The seasonal trend appears to be changing more proportionally with the level here, again pointing to a multiplicative method. 
+
+#ATM 3
+atm3Decomp <- stl(atm3TS, t.window=7, s.window=7, robust=TRUE) 
+plot(atm3Decomp, main = "ATM 3 Decomposition")
+#Likely brand new ATM -- no usage until very end of data
+
+#ATM 4
+atm4Decomp <- stl(atm4TS, t.window=7, s.window=4, robust=TRUE) 
+plot(atm4Decomp, main = "ATM 4 Decomposition")
+#Lower levels of usage with one large spike -- possibly associated with winter holidays. While there are some seasonality changes, I'm not sure if its in proportion to the level, let us look!
+
+#Fixing outlier in ATM 4 with modeling
+out4.pos <- which(atm4TS == 1123)
+out4.atm4TS <- atm4TS[1:out4.pos]
+out4.train.end <- time(out4.atm4TS)[length(out4.atm4TS)-1]
+out4.train <- window(out4.atm4TS,end=out4.train.end)
+out4.fit <- Arima(out4.train)
+out4.fc <- forecast(out4.fit,h=1)
+atm4TS[285] <- as.integer(out4.fc$mean)
+plot(atm4TS)
+```
+
+#ATM 3: Naive Model
+```{r Arima ATM3}
+plot(atm3TS)
+#Since this atm appears to be new or only used for 3 periods, there isn't enough data for a legitimate model, so a naive forecast seems appropriate. 
+
+atm3TS.active <- atm3TS[363:365]
+atm3Fit <- naive(atm3TS.active, 31)
+```
+
+#STL Decomposition
+
+#ATM 1
+```{r STL ATM1}
+getrmseSTL <- function(x,h,t,s)
+{
+  train.end <- time(x)[length(x)-h]
+  test.start <- time(x)[length(x)-h+1]
+  train <- window(x,end=train.end)
+  test <- window(x,start=test.start)
+  fit <- stl(train, t.window=t, s.window= s, robust=TRUE)
+  fcast <- forecast(fit, method="naive")
+  return(accuracy(fcast,test)[2,"RMSE"])
+}
+getrmseSTL(atm1TS, 30, 7, "periodic") #73.76
+getrmseSTL(atm1TS, 30, 4, "periodic") #72.67
+getrmseSTL(atm1TS, 30, 12, "periodic") #73.52
+getrmseSTL(atm1TS, 30, 4, 7) #31.99 #winner
+getrmseSTL(atm1TS, 30, 7, 4) #37.13
+```
+#ATM 2
+```{r STL ATM2}
+getrmseSTL(atm2TS, 30, 7, "periodic") #100.42
+getrmseSTL(atm2TS, 30, 4, "periodic") #98.46
+getrmseSTL(atm2TS, 30, 4, 7) #27.11 
+getrmseSTL(atm2TS, 30, 7, 4) #18.28 #winner
+```
+
+#ATM 4
+```{r STL ATM4}
+getrmseSTL(atm4TS, 30, 7, "periodic") #77.78
+getrmseSTL(atm4TS, 30, 4, 7) #30.81 #winner
+getrmseSTL(atm4TS, 30, 7, 4) #37.25 
+```
+
+#Exponential Smoothing: Holt-Winters seasonal
+
+#ATM 1
+```{r Holt-Winters ATM1}
+#ATM1
+StSp1 <- ets(hwATM1, model="ZZZ")
+#state space model selection suggests an ANA model (additive errors, no trend, additive seasonality)
+hwATM1 <- window(atm1TS)
+hwA1 <- hw(hwATM1,seasonal="additive")
+hwM1 <- hw(hwATM1,seasonal="multiplicative")
+hwDM1 <- hw(hwATM1,seasonal="multiplicative", Damped = TRUE)
+plot(hwA1)
+str(hwA1)
+#ATM Exponential Smoothing model results:
+A1fit <- hwA1$model[2:6]
+M1fit <- hwM1$model[2:6]
+DM1fit <- hwDM1$model[2:6]
+SS1fit <- StSp1[2:6]
+ATM1expfit <- rbind.data.frame(Additive = A1fit, Multiplicative = M1fit, Damped_Multi = DM1fit, StateSpace = SS1fit)
+ATM1expfit <- ATM1expfit %>% mutate(rmse = sqrt(mse))
+row.names(ATM1expfit) <- c("Additive", "Mutliplicative", "DampedMultiplicative", "StateSpace")
+ATM1expfit
+
+getrmseHW <- function(x,h,model)
+{
+  train.end <- time(x)[length(x)-h]
+  #print(train.end)
+  test.start <- time(x)[length(x)-h+1]
+  #print(test.start)
+  train <- window(x,end=train.end)
+  #print(train)
+  test <- window(x,start=test.start)
+  #print(test)
+  if(model == "additive"){fit5 <- hw(train,seasonal = "additive", h=h)}
+  if(model == "multiplicative"){fit5 <- hw(train, seasonal="multiplicative", h=h)}
+  if(model == "damped"){fit5 <- hw(train,seasonal="multiplicative", Damped = TRUE, h=h)}
+  if(model == "statespace"){
+    fitets <- ets(train, model="ZZZ")
+    fit5 <- forecast(fitets, h=h)}
+  #print(str(fit5))
+  #fc <- forecast(fit,h=h)
+  return(accuracy(fit5,test)[2,"RMSE"])
+}
+getrmseHW(hwATM1, 30, "additive") #11.75
+getrmseHW(hwATM1, 30, "multiplicative") #11.31
+getrmseHW(hwATM1, 30, "multiplicative damped") #11.31
+getrmseHW(hwATM1, 30, "statespace") #11.62
+
+time(atm1TS)
+getrmse(atm1TS,h=30,order=c(5,1,3),seasonal=c(2,1,1),lambda=0)
+```
+#ATM 2
+```{r Holt-Winters ATM2}
+#ATM2
+StSp2 <- ets(hwATM2, model="ZZZ")
+#state space model selection suggests an ANA model (additive errors, no trend, additive seasonality)
+hwATM2 <- window(atm2TS)
+hwA2 <- hw(hwATM2,seasonal="additive")
+hwM2 <- hw(hwATM2,seasonal="multiplicative")
+hwDM2 <- hw(hwATM2,seasonal="multiplicative", Damped = TRUE)
+plot(hwA2)
+
+#ATM Exponential Smoothing model results:
+A2fit <- hwA2$model[2:6]
+M2fit <- hwM2$model[2:6]
+DM2fit <- hwDM2$model[2:6]
+SS2fit <- StSp2[2:6]
+ATM2expfit <- rbind.data.frame(A2fit, M2fit, DM2fit, SS2fit)
+ATM2expfit <- ATM2expfit %>% mutate(rmse = sqrt(mse))
+row.names(ATM2expfit) <- c("Additive", "Mutliplicative", "DampedMultiplicative", "StateSpace")
+ATM2expfit
+
+getrmseHW(hwATM2, 30, "additive") #20.62
+getrmseHW(hwATM2, 30, "multiplicative") #16.87
+getrmseHW(hwATM2, 30, "damped") #16.87
+getrmseHW(hwATM2, 30, "statespace") #19.43
+```
+#ATM 4
+```{r Holt-Winters ATM4}
+#ATM4
+StSp4 <- ets(hwATM4, model="ZZZ")
+#state space model selection suggests an ANA model (additive errors, no trend, additive seasonality)
+hwATM4 <- window(atm4TS)
+hwA4 <- hw(hwATM4,seasonal="additive")
+hwM4 <- hw(hwATM4,seasonal="multiplicative")
+hwDM4 <- hw(hwATM4,seasonal="multiplicative", Damped = TRUE)
+plot(hwA4)
+
+#ATM4 Exponential Smoothing model results:
+A4fit <- hwA2$model[2:6]
+M4fit <- hwM2$model[2:6]
+DM4fit <- hwDM2$model[2:6]
+SS4fit <- StSp2[2:6]
+ATM4expfit <- rbind.data.frame(A4fit, M4fit, DM4fit, SS4fit)
+ATM4expfit <- ATM4expfit %>% mutate(rmse = sqrt(mse))
+row.names(ATM4expfit) <- c("Additive", "Mutliplicative", "DampedMultiplicative", "StateSpace")
+ATM4expfit
+
+getrmseHW(hwATM4, 30, "additive") #50.27
+getrmseHW(hwATM4, 30, "multiplicative") #47.56
+getrmseHW(hwATM4, 30, "damped") #10.89
+getrmseHW(hwATM4, 30, "statespace") #11.52
+```
+##Arima Modeling
+
+#ATM1
+```{r ATM1 Arima}
+plot(atm1TS)
+
+#weekly seasonality
+atm1TS <- ts(atm1$Cash, start = decimal_date(as.Date("2009-05-01")), frequency = 7)
+
+#Stationarity:
+tsdisplay(atm1TS)
+#It's clear that there's still seasonal and monthly seasonality in the data. Because these trends are so clear, and the data appears stationary, it's not clear that any differencing is necessary.
+
+#All tests suggest the data is already stationary:
+ndiffs(atm1TS)
+adf.test(atm1TS, alternative = "stationary")
+kpss.test(atm1TS)
+
+#Still, its clear there is still both monthly and seasonal seasonality within the data. Since the seasonal trends on the ACF appear to be exponentially decaying or sinusoidal, I suspect we may have variations of the ARIMA(p,d,0) (or in this case ARIMA(p,0,0)) models, with much of the weight falling on the seasonal component. 
+
+auto.arima(atm1TS)$aicc #3374.79 aicc, so auto arima confirms this, but let us play with a few variations to confer.
+Arima(atm1TS, order=c(1,0,0), seasonal=c(2,0,1))$aicc #3354.14 aicc: lower!
+Arima(atm1TS, order=c(2,0,0), seasonal=c(2,0,1))$aicc #3364.94 aicc: very slightly higher
+Arima(atm1TS, order=c(2,1,0), seasonal=c(2,0,1))$aicc #3431.17 aicc: even slightly lower
+Arima(atm1TS, order=c(3,1,0), seasonal=c(2,0,1))$aicc #3410.45 aicc: lower still
+Arima(atm1TS, order=c(3,1,1), seasonal=c(2,0,1))$aicc #3348.25 aicc: still lower
+Arima(atm1TS, order=c(3,1,1), seasonal=c(2,1,1))$aicc #3291.15 aicc: appears to be the lowest I can manually find
+
+fitATM1a <- Arima(atm1TS, order=c(3,1,1), seasonal=c(2,1,1))
+resATM1a <- residuals(fitATM1a)
+tsdisplay(resATM1a)
+Box.test(resATM1a, lag=26, fitdf=7, type="Ljung") #passes box-ljung test
+
+#we have nearly identical spikes on both graphs just touching the boundaries, so potentially need additional non-seasonal terms. 
+fitATM1b <- Arima(atm1TS, order=c(5,1,3), seasonal=c(2,1,1)) #3290.65 
+resATM1b <- residuals(fitATM1b)
+tsdisplay(resATM1b) #no significant spikes here
+Box.test(resATM1b, lag=26, fitdf=10, type="Ljung") #passes box-ljung test
+
+#The full auto-arima took too long to process...
+
+#Compare fitted models using a test set consiting of the last month of data. So we'll be fitting the model from may '09 to march '10, and forcast the atm usage in April '10. 
+
+getrmse <- function(x,h,...)
+{
+  train.end <- time(x)[length(x)-h]
+  test.start <- time(x)[length(x)-h+1]
+  train <- window(x,end=train.end)
+  test <- window(x,start=test.start)
+  fit <- Arima(train,...)
+  fc <- forecast(fit,h=h)
+  return(accuracy(fc,test)[2,"RMSE"])
+}
+
+getrmse(atm1TS,h=30,order=c(5,1,3),seasonal=c(2,1,1),lambda=0)
+getrmse(atm1TS,h=30,order=c(3,1,1),seasonal=c(2,1,1),lambda=0)
+getrmse(atm1TS,h=30,order=c(3,1,1),seasonal=c(2,0,1),lambda=0)
+getrmse(atm1TS,h=30,order=c(2,1,0),seasonal=c(2,0,1),lambda=0)
+getrmse(atm1TS,h=30,order=c(2,0,0),seasonal=c(2,0,1),lambda=0)
+getrmse(atm1TS,h=30,order=c(1,0,0),seasonal=c(2,0,1),lambda=0) #lowest rmse (8.54)
+getrmse(atm1TS,h=30,order=c(1,0,0),seasonal=c(2,0,0),lambda=0)
+
+#check the residuals of the winning numbers...
+fitATM1c <- Arima(atm1TS, order=c(1,0,0), seasonal=c(2,0,1), lambda=0)
+resATM1c <- residuals(fitATM1c)
+tsdisplay(resATM1c) #only one spike closely approaches the boundary
+Box.test(resATM1c, lag=26, fitdf=5, type="Ljung") #passes box-ljung test, and I'm comfortable with it's slightly higher aicc, but less complicated coefficients
+
+#forecasting:
+forecastATM1c <- forecast(fitATM1c, h=31)
+plot(forecastATM1c, ylab="ATM 1 Usage")
+```
+#ATM 2
+```{r ATM2 Arima}
+plot(atm2TS)
+
+#Stationarity:
+tsdisplay(atm2TS)
+#It's clear that there's still seasonal and monthly seasonality in the data. There also appears to be a downward trend which may need differencing.
+
+ndiffs(atm2TS) #suggests 1 difference
+adf.test(atm2TS, alternative = "stationary") #says is stationary
+kpss.test(atm2TS) #not stationary
+
+tsdisplay(diff(atm2TS,12))
+#there's both seasonal and monthly seasonality in the data, in senusoidal patterns. I suspect at least ar(1) and a differencing for the base model, and ar(2) for the seasonal.
+
+auto.arima(atm2TS)
+#Since the seasonal trends on the ACF appear to be exponentially decaying or sinusoidal, I suspect we may have variations of the ARIMA(p,d,0) (or in this case ARIMA(p,0,0)) models, with much of the weight falling on the seasonal component. 
+
+auto.arima(atm2TS)$aicc #3467.9 aicc, auto arima suggests 2 more base ar components as well for an ARIMA(3,1,0)(2,0,0)
+Arima(atm2TS, order=c(1,1,0), seasonal=c(2,0,0))$aicc #3546 aicc: my guess was higher
+Arima(atm2TS, order=c(4,1,0), seasonal=c(2,0,0))$aicc #3467 aicc: slightly lower
+Arima(atm2TS, order=c(5,1,0), seasonal=c(2,0,0))$aicc #3462 aicc
+Arima(atm2TS, order=c(4,1,1), seasonal=c(2,0,0))$aicc #3395 aicc 
+Arima(atm2TS, order=c(4,1,1), seasonal=c(3,0,0))$aicc #3391 aicc
+Arima(atm2TS, order=c(4,1,1), seasonal=c(3,0,1))$aicc #3381 aicc
+Arima(atm2TS, order=c(4,1,1), seasonal=c(3,1,1))$aicc #3320 aicc 
+Arima(atm2TS, order=c(4,1,1), seasonal=c(3,2,1))$aicc #3315 aicc
+Arima(atm2TS, order=c(4,1,1), seasonal=c(4,2,1))$aicc #3311 aicc
+Arima(atm2TS, order=c(5,1,3), seasonal=c(4,2,1))$aicc #3303 aicc:appears to be the lowest I can manually find
+
+fitATM2a <- Arima(atm2TS, order=c(5,1,3), seasonal=c(4,2,1))
+resATM2a <- residuals(fitATM2a)
+tsdisplay(resATM2a) #significant spikes on both graphs at 23, but I've tried adding more components to the model with little to no improvement
+Box.test(resATM2a, lag=26, fitdf=13, type="Ljung") #this passes the box-ljung test
+
+#Compare fitted models using a test set consiting of the last month of data. So we'll be fitting the model from may '09 to march '10, and forcast the atm usage in April '10. 
+
+getrmse(atm2TS,h=30,order=c(5,1,3), seasonal=c(4,1,1),lambda=0) #25.25
+getrmse(atm2TS,h=30,order=c(4,1,1), seasonal=c(4,2,1),lambda=0) 
+getrmse(atm2TS,h=30,order=c(4,1,1), seasonal=c(3,2,1),lambda=0) #28.45
+getrmse(atm2TS,h=30,order=c(4,1,1), seasonal=c(3,1,1),lambda=0) #25.67
+getrmse(atm2TS,h=30,order=c(4,1,1), seasonal=c(3,0,1),lambda=0) #25.87
+getrmse(atm2TS,h=30,order=c(4,1,1), seasonal=c(3,0,0),lambda=0) #26.43
+getrmse(atm2TS,h=30,order=c(4,1,1), seasonal=c(2,0,0),lambda=0) #27.42
+getrmse(atm2TS,h=30,order=c(5,1,0), seasonal=c(2,0,0),lambda=0)
+getrmse(atm2TS,h=30,order=c(4,1,0), seasonal=c(2,0,0),lambda=0)
+getrmse(atm2TS,h=30,order=c(1,1,0), seasonal=c(2,0,0),lambda=0) #26.13
+getrmse(atm2TS,h=30,order=c(3,1,0), seasonal=c(2,0,0),lambda=0)
+#Arima(5,1,3)(4,1,1) is best on both RMSE and AICc
+
+#forecasting:
+forecastATM2a <- forecast(fitATM2a, h=31)
+plot(forecastATM2a, ylab="ATM 2 Usage")
+
+```
+
+#ATM4
+```{r ATM4 Arima}
+#Stationarity:
+tsdisplay(atm4TS)
+#It's clear that there's still seasonal and monthly seasonality in the data. There also appears to be some cyclical behavior; tests suggest it doesn't need differencing:
+
+ndiffs(atm4TS) #suggests no differencing
+adf.test(atm4TS, alternative = "stationary") #says is stationary
+kpss.test(atm4TS) #mostly stationary
+
+#Appears to be 2 seasonal patterns amounting to sAR(2), and likely one non-seasonal for ARIMA(1,0,0)(2,0,0). Basic Arima agrees with me. 
+auto.arima(atm4TS)
+
+#Manuel double checking:
+auto.arima(atm4TS)$aicc #3369 aicc
+Arima(atm4TS, order=c(1,1,0), seasonal=c(2,0,0))$aicc #3494 aicc
+Arima(atm4TS, order=c(2,0,0), seasonal=c(2,0,0))$aicc #3370 aicc
+Arima(atm4TS, order=c(1,0,1), seasonal=c(2,0,0))$aicc #3370 aicc
+Arima(atm4TS, order=c(1,0,0), seasonal=c(3,0,0))$aicc #3363 aicc: slightly lower than auto arima 
+Arima(atm4TS, order=c(1,0,0), seasonal=c(4,0,0))$aicc #3356 aicc: slightly lower
+Arima(atm4TS, order=c(1,0,0), seasonal=c(5,0,0))$aicc #3353 aicc: marginally lower
+Arima(atm4TS, order=c(1,0,0), seasonal=c(5,1,0))$aicc #3290 aicc: notably still lower
+Arima(atm4TS, order=c(1,0,0), seasonal=c(5,2,0))$aicc #3331 aicc
+Arima(atm4TS, order=c(1,0,0), seasonal=c(5,1,1))$aicc #3288 aicc: another marginal improvement
+Arima(atm4TS, order=c(1,0,0), seasonal=c(5,1,2))$aicc #3291 aicc: worse
+
+fitATM4a <- Arima(atm4TS, order=c(1,0,0), seasonal=c(5,1,2))
+resATM4a <- residuals(fitATM4a)
+tsdisplay(resATM4a) #one slightly significant spike in the pacf, but I didn't find improvements to the parameters after further testing
+Box.test(resATM4a, lag=26, fitdf=13, type="Ljung") #passes the box-ljung test
+
+#Compare fitted models using a test set consiting of the last month of data. So we'll be fitting the model from may '09 to march '10, and forcast the atm usage in April '10. 
+
+getrmse(atm2TS,h=30,order=c(1,1,0), seasonal=c(2,0,0),lambda=0) #26.1
+getrmse(atm2TS,h=30,order=c(2,0,0), seasonal=c(2,0,0),lambda=0) 
+getrmse(atm2TS,h=30,order=c(1,0,1), seasonal=c(2,0,0),lambda=0) 
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(3,0,0),lambda=0) #26.46
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(4,0,0),lambda=0) #26.17
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(5,0,0),lambda=0, method="CSS") 
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(5,1,0),lambda=0, method="CSS") #23.72
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(5,2,0),lambda=0, method="CSS")
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(5,1,1),lambda=0, method="CSS") #23.79
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(5,1,2),lambda=0) #24.15
+#Arima(1,0,0)(5,1,0) is best on RMSE and second best on AICc, and is the simpler of the two
+
+#forecasting:
+forecastATM4a <- forecast(fitATM4a, h=31)
+plot(forecastATM4a, ylab="ATM 4 Usage")
+```
+###Model Selection and Forecast: STL vs Holt-Winters vs Seasonal Arima
+
+#ATM 1
+```{r }
+#STL:
+getrmseSTL(atm1TS, 30, 4, 7) #31.99
+
+#Holt-Winters
+getrmseHW(hwATM1, 30, "multiplicative") #11.31
+
+#Arima:
+getrmse(atm1TS,h=30,order=c(1,0,0),seasonal=c(2,0,1),lambda=0) #lowest rmse of 8.54
+
+#Will choose seasonal arima, which had the lowest RMSE:
+forecastATM1c <- forecast(fitATM1c, h=31)
+plot(forecastATM1c, ylab="ATM 1 Usage Forecast")
+
+```
+
+#ATM 2
+```{r }
+#STL:
+getrmseSTL(atm2TS, 30, 7, 4) #18.28 
+
+#Holt-Winters
+getrmseHW(hwATM2, 30, "damped") #16.87 #lowest RMSE
+
+#Arima:
+getrmse(atm2TS,h=30,order=c(5,1,3), seasonal=c(4,1,1),lambda=0) #25.25
+
+#Will choose Holt-Winters multiplicative damped, which had the lowest RMSE:
+forecastATM2hw <- hw(hwATM2,seasonal="multiplicative", Damped = TRUE, h = 31)
+plot(forecastATM2hw, ylab="ATM 2 Usage Forecast")
+```
+
+#ATM 3
+```{r }
+atm3Fit <- naive(atm3TS.active, 31)
+forecastATM3n <- forecast(atm3Fit, 31)
+plot(forecastATM3n, ylab="ATM 3 Usage Forecast")
+```
+
+#ATM 4
+```{r }
+#STL:
+getrmseSTL(atm4TS, 30, 4, 7) #30.81
+
+#Holt-Winters
+getrmseHW(hwATM4, 30, "damped") #10.89
+
+#Arima:
+getrmse(atm2TS,h=30,order=c(1,0,0), seasonal=c(5,1,0),lambda=0, method="CSS") #23.72
+
+#Will choose Holt-Winters multiplicative damped, which had the lowest RMSE:
+forecastATM4hw <- hw(hwATM4,seasonal="multiplicative", Damped = TRUE, h = 31)
+plot(forecastATM4hw, ylab="ATM 4 Usage Forecast")
+```
