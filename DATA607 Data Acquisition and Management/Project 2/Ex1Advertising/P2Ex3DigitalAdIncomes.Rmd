@@ -1,0 +1,49 @@
+---
+title: "IS607 P2Ex1: Digital Advertising Income"
+author: "Andrew Goldberg"
+date: "October 9, 2015"
+output: html_document
+---
+
+
+Import and clean data.
+```{r}
+require(dplyr)
+require(tidyr)
+
+digaddat <- read.csv("C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Project 2\\Ex1Advertising\\digadscomp.csv")
+
+colnames(digaddat)[1] <- "year"
+```
+
+Tidying data. A little easier than I expected. 
+```{r}
+digitalads <- digaddat %>%
+  gather("company", "revenue", Google:AOL)
+
+tbl_df(digitalads)
+```
+
+Total, average, and change in revenue by company. Facebook and Google earn the most revenue and have the largest growth as well. Yahoo is still a heavy hitter, but with stunted growth. 
+```{r}
+digitalads %>%
+  spread(year, revenue) %>%
+  mutate(improverevenue = `2013` - `2009`) %>%
+  gather(year, revenue, `2009`:`2013`) %>%
+  group_by(company) %>%
+  mutate(averagerevenue = mean(revenue)) %>%
+  group_by(company, improverevenue, averagerevenue) %>%
+  summarise(totalrevenue = sum(revenue)) %>%
+  arrange(desc(totalrevenue))
+```
+
+Total and average revenue by year; steady yearly total and average growth overall.
+```{r}
+digitalads %>%
+  group_by(year) %>%
+  mutate(totalrevenue = sum(revenue)) %>%
+  group_by(year, totalrevenue) %>%
+  summarise(averagerevenue = mean(revenue))
+```
+
+

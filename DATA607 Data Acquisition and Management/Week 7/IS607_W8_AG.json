@@ -1,0 +1,17 @@
+{"<favorite_writers" :[
+	{
+		"title": "Harlot's Ghost",
+		"authors": ["Norman Mailer"],
+		"attributes": ["espionage", "American literature"]
+	},
+	{
+		"title": "Rabbit, Run",
+		"authors": ["John Updike"],
+		"attributes": ["escape", "American literature"]
+	},
+	{
+		"title": "Reading Myself and Others",
+		"authors": ["Philip Roth", "Martin Asher"],
+		"attributes": ["controversies", "American literature"]
+	}]
+}

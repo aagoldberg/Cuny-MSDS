@@ -1,0 +1,18 @@
+---
+title: "IS607 A10 AG"
+author: "Andrew Goldberg"
+date: "October 31, 2015"
+output: html_document
+---
+
+```{r}
+library(jsonlite)
+library(RCurl)
+options(nytimesid = "f8ca663b7aae0127fb3603d0aadab0a5:17:73343003")
+
+bestseller_url <- "http://api.nytimes.com/svc/books/v3/lists?list=hardcover-fiction&weeks-on-list=2"
+jsondat <- getForm(bestseller_url, `api-key` = getOption("nytimesid"), .opts=list(crlf = TRUE))
+hcfictiondat <- fromJSON(jsondat)
+hcfictiontab <- hcfictiondat$results
+str(hcfictiontab)
+```

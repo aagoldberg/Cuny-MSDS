@@ -1,0 +1,97 @@
+---
+title: "IS607 P2Ex2:Popes"
+author: "Andrew Goldberg"
+date: "October 9, 2015"
+output: html_document
+---
+Importing and cleaning data
+```{r}
+require(dplyr)
+require(tidyr)
+require(stringr)
+
+popedat <- read.csv("C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Project 2\\Ex2Popes\\popefavs.csv", stringsAsFactors = FALSE)
+
+#renaming
+colnames(popedat)[1] <- "date"
+colnames(popedat)[4] <- "noopinion"
+
+#create a column of pope names
+popedat$name[14:18] <- "John Paul II"
+popedat$name[7:11] <- "Benedict XVI"
+popedat$name[3:4] <- "Francis"
+
+#removing empty rows
+popepoll <- popedat[popedat$Unfavorable != "" & popedat$Unfavorable != "%",]
+
+#coercing vectors to preferred types
+popepoll$date <- as.character(popepoll$date)
+popepoll$Favorable <- as.numeric(popepoll$Favorable)
+popepoll$Unfavorable <- as.numeric(popepoll$Unfavorable)
+popepoll$noopinion <- as.numeric(popepoll$noopinion)
+
+#extracting beginning and end data from survey fielding dates
+year <- as.numeric(str_sub(popepoll$date, start = -4))
+startmonth <- as.character(word(popepoll$date,1))
+startmonthnum <- match(str_sub(startmonth, end = 3), month.abb)
+endmonth <- as.character(str_extract(word(popepoll$date, start = 2), "[:alpha:]+"))
+endmonth[is.na(endmonth)] <- startmonth[is.na(endmonth)] #was fun to figure out
+endmonthnum <- match(str_sub(endmonth, end = 3), month.abb)
+startday <- as.numeric(str_sub(str_extract(popepoll$date, "[:digit:]+-"), end = -2))
+endday <- as.numeric(str_sub(str_extract(popepoll$date, "[:digit:]+,"), end = -2))
+
+#concatenating and formatting date data 
+popepoll$startdate <- as.Date(paste(startmonthnum, startday, year, sep = "/"), format = "%m/%d/%Y")
+popepoll$enddate <- as.Date(paste(endmonthnum, endday, year, sep = "/"), format = "%m/%d/%Y")
+```
+
+Tidying data, although not entirely sure when the tidying process has technically started
+```{r}
+popepolltidy <- popepoll[,c("name", "startdate", "enddate", "Favorable", "Unfavorable", "noopinion")] %>%
+  gather(favorability, favscores, Favorable:noopinion)
+
+str(popepolltidy)
+```
+
+On average through their tenure, Francis and John Paul II had similarly high favorables, while Benedict XVI was slightly less known
+```{r}
+#look at averaged favorables
+popepolltidy %>%
+  group_by(name, favorability) %>%
+  summarize(averagescores = mean(favscores)) %>%
+  spread(favorability, averagescores) %>%
+  mutate(netfav = `Favorable` - `Unfavorable`)
+```
+
+While Francis has held the papacy for only a fraction of the time of his last 2 predecessors, he's grown in popularity quite quickly, similar to the movement John Paul saw over his entire tenure. 
+
+Benedict, however, became increasingly unpopular during his reign. Despite being a well educated and liberal theologian, he advocated a return to fundamental Christian values to counter the increasing secularism of western countries, and eventually was moved to resign, giving way to the more open and accepting direction of Francis. 
+```{r}
+#create table of last opinion polls of tenure
+lastpolls <- popepolltidy %>%
+  group_by(name) %>%
+  top_n(3, startdate) %>%
+  spread(favorability, favscores) %>%
+  mutate(netfavorable = Favorable - Unfavorable) %>%
+  mutate(awareness = Favorable + Unfavorable)
+
+#create table of first opinion polls of tenure
+firstpolls <- popepolltidy %>%
+  group_by(name) %>%
+  arrange(desc(startdate), name, favorability) %>%
+  do(tail(., n=3)) %>% #this took some research. Dplyr has top_n, but not bottom_n. When you order dates descending, top_n reorders dates into ascending, so I had to go out of book. 
+  arrange(name) %>%
+  spread(favorability, favscores) %>%
+  mutate(netfavorable = Favorable - Unfavorable) %>%
+  mutate(awareness = Favorable + Unfavorable)
+
+#calculate opinion movement over time
+popepollsdiff <- data.frame(lastpolls$name)
+popepollsdiff$timeframedays <- lastpolls$enddate - firstpolls$enddate
+popepollsdiff$favchange <- lastpolls$Favorable - firstpolls$Favorable
+popepollsdiff$unfavchange <- lastpolls$Unfavorable - firstpolls$Unfavorable
+popepollsdiff$noopinchange <- lastpolls$noopinion - firstpolls$noopinion
+popepollsdiff$netfavchange <- lastpolls$netfavorable - firstpolls$netfavorable
+popepollsdiff$awarenesschange <- lastpolls$awareness - firstpolls$awareness
+popepollsdiff
+```

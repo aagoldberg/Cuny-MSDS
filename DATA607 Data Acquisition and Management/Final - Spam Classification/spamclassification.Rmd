@@ -1,0 +1,89 @@
+---
+title: "Spam Classification"
+author: "Andrew Goldberg"
+date: "November 21, 2015"
+output: html_document
+---
+
+The following script acquires and models spam data from the spamassassin public corpus. 
+https://spamassassin.apache.org/publiccorpus/
+
+```{r}
+library(tm)
+library(RTextTools)
+setwd("C:/Users/Andrew/Desktop/Cuny/Data Acquisition/Week 11/spam")
+#Label links
+spamlink <- "https://spamassassin.apache.org/publiccorpus/20030228_spam.tar.bz2"
+hardhamlink <- "https://spamassassin.apache.org/publiccorpus/20030228_hard_ham.tar.bz2"
+easyhamlink <- "https://spamassassin.apache.org/publiccorpus/20030228_easy_ham.tar.bz2"
+
+#Download tarballs
+download.file(spamlink, destfile="spam.tar.gz")
+download.file(hardhamlink, destfile="hardham.tar.gz")
+download.file(easyhamlink, destfile="easyham.tar.gz")
+
+#Extract tarballs
+untar("spam.tar.gz")
+untar("hardham.tar.gz")
+untar("easyham.tar.gz")
+
+#Create corpus objects
+spamcorpdat <- Corpus(DirSource("spam"), readerControl = list(language="lat"))
+hamcorpdat <- Corpus(DirSource("easy_ham"), readerControl = list(language="lat"))
+hardhamcorpdat <- Corpus(DirSource("hard_ham"), readerControl = list(language="lat"))
+
+#Remove cmds file
+spamcorpdat <- spamcorpdat[1:500]
+hamcorpdat <- hamcorpdat[1:2500]
+hardhamcorpdat <- hardhamcorpdat[1:250]
+
+#Sample the corpuses
+spamcorpdat <- sample(spamcorpdat, 250)
+hamcorpdat <- sample(hamcorpdat, 250)
+hardhamcorpdat <- sample(hardhamcorpdat, 100)
+
+#Add meta labels
+meta(spamcorpdat, tag = "type") <- "spam"
+meta(hamcorpdat, tag = "type") <- "ham"
+meta(hardhamcorpdat, tag = "type") <- "hardham"
+
+#Combine corpus objects
+combinedspamcorpus <- c(spamcorpdat,hamcorpdat,hardhamcorpdat, recursive=T)
+
+#Create randomized corpus
+spamcorpusR <- sample(combinedspamcorpus)
+spamcorpusR
+
+#Build document-term matrix. I worried about simplifying with spam. 
+spamdtm <- DocumentTermMatrix(spamcorpusR)
+
+#Collect meta labels
+spamtype <- unlist(meta(spamcorpusR, "type")[,1])
+head(spamtype,5)
+
+#Prepare container
+N <- length(spamtype)
+container <- create_container(
+  spamdtm,
+  labels = spamtype,
+  trainSize = 1:400,
+  testSize = 401:N,
+  virgin = FALSE
+)
+
+slotNames(container)
+
+#Training models
+svm_model <- train_model(container, "SVM")
+rf_model <- train_model(container, "RF")
+maxent_model <- train_model(container, "MAXENT")
+
+#Classifying data
+svm_out <- classify_model(container, svm_model)
+rf_out <- classify_model(container, rf_model)
+maxent_out <- classify_model(container, maxent_model)
+
+head(svm_out)
+head(rf_out)
+head(maxent_out)
+```

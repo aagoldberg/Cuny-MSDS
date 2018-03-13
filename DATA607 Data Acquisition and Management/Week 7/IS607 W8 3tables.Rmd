@@ -1,0 +1,46 @@
+---
+title: "IS607 W8 AGoldberg"
+author: "Andrew Goldberg"
+date: "October 17, 2015"
+output: html_document
+---
+
+HTML data
+```{r}
+library(XML)
+htmldat <- "C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Week 7\\IS607_W8_AG.html"
+htmltable <- readHTMLTable(htmldat)
+
+#Without having to create an hierarchy, I am able to create a good table from scratch, although it takes a while. 
+htmltable
+```
+
+XML data
+```{r}
+library(XML)
+xmldat <- xmlParse("C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Week 7\\IS607_W8_AG.xml")
+xmldataframe <- xmlToDataFrame(xmldat)
+
+#XML package has difficulty converting more complex, hierarchical xml code into datatables. Multiple attributes don't fit nicely and are just ignored in this case. 
+xmldataframe 
+
+#adding lost data and tidying up
+favauthors <- data.frame(title=(xmldataframe$title))
+favauthors$main <- xpathSApply(xmldat, "//main", fun = xmlValue)
+favauthors$secondary <- c("","",xpathSApply(xmldat, "//secondary", fun = xmlValue))
+favauthors$firstatt <- xpathSApply(xmldat, "//background", xmlGetAttr, "first")
+favauthors$secondatt <- xpathSApply(xmldat, "//background", xmlGetAttr, "second")
+favauthors
+```
+
+JSON data, all there, but not tidy
+```{r}
+library(jsonlite)
+jsondat <- fromJSON("C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Week 7\\IS607_W8_AG.json")
+json.df <- do.call("rbind", lapply(jsondat, data.frame, stringsAsFactors = FALSE))
+
+
+#JSON data is simplier and flatter and easier to extract. JSONlite does a good job converting data, and especially attributes, into a dataframe.
+json.df
+```
+

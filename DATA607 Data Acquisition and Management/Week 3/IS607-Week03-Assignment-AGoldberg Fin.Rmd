@@ -1,0 +1,24 @@
+---
+title: "IS607-Week3-HW-AGoldberg"
+author: "Andrew Goldberg"
+date: "September 13, 2015"
+output: html_document
+---
+
+The following code retrieves the UCI Pittsburg Bridges Set and creates a data.frame consisting of columns for years erected, purpose, material, and type. 
+
+```{r bridges-data-retrieval, fig.cap="Retreives and codes Pittsburgh Bridges Data Set", eval = TRUE}
+
+#retrieve and load data into a data.frame 
+theUrl <- "http://archive.ics.uci.edu/ml/machine-learning-databases/bridges/bridges.data.version1"
+dat <- read.table(file = theUrl, header = FALSE, sep = ",", na.string = "?")
+
+#Pick and name Columns
+bridges <- subset(dat, select = c(4, 5, 10, 13))
+colnames(bridges) <- c("erected", "purpose", "material", "b_type")
+
+#check the data.frame
+class(bridges)
+summary(bridges)
+```
+

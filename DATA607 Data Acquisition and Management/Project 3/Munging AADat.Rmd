@@ -1,0 +1,42 @@
+---
+title: "filmeditingcomparison"
+author: "Andrew Goldberg"
+date: "October 16, 2015"
+output: html_document
+---
+
+I cheated a little bit by first spot checking the data on Excel and deleting all of the honorary or archaeic awards as well as double checking that the nominees lined up alright.
+
+ 
+```{r}
+library(stringr)
+library(dplyr)
+library(tidyr)
+aadat <- read.csv("C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Project 3\\aawinners1.csv")
+
+#improve column names
+aawinners <- transmute(aadat, year = Year, category = Category, nominee = Nominee, notes = Additional.Info, won = Won.)
+```
+
+Filtering out years before 1934, when editing was introduced.
+```{r}
+aawinners$year <- as.numeric(str_extract(aawinners$year, "[:digit:]{4}"))
+
+act <- aawinners %>%
+  filter(year > 1933) %>%
+  group_by(grepl("Actor|Actress",category))
+
+NEXT STEP: movie names sperate
+
+
+str(act)
+
+
+?grepl
+head(aawinners)
+str(aawinners)
+head(aawinners)
+?separate
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

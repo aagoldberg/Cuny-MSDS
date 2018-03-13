@@ -1,0 +1,61 @@
+---
+title: "IS607 HW5 Tidying Data"
+author: "Andrew Goldberg"
+date: "October 3, 2015"
+output: html_document
+---
+
+```{r}
+require(tidyr)
+require(dplyr)
+
+#import .csv and rename columns
+air_arr <- read.csv("C:/users/Andrew/Documents/R/win-library/3.1/is607w6.csv", header = TRUE, as.is = TRUE,
+                    col.names = c("airlines", "status", "Los_Angeles", "Phoenix", "San_Diego", "San_Francisco", "Seattle"))
+```
+
+```{r}
+#coerce city vectors to numeric and remove commas
+air_arr[,3:7] <- apply(air_arr[,3:7], 2, function(air_arr) as.numeric(gsub(",","", air_arr)))
+```
+
+```{r}
+#Fill in the blank airlines slot. Had trouble finding an eloquent solution for larger datafiles with this problem. With time...
+air_arr[2,1] <- "Alaska"
+air_arr[5,1] <- "AM WEST"  
+air_arr
+```
+
+```{r}
+#Tidy up data. 
+air_delays <- air_arr %>%
+  gather(city, value, Los_Angeles:Seattle) %>%
+  filter(status != "") %>% #At this point, I believe it is technically tidy, but now to make it easier to analyze and pass on...
+  spread(status, value) %>% 
+  mutate(tot_delayed = delayed / (delayed + `on time`))
+```
+
+AM WEST has a higher proportion of delays (over 6%) than Alaska
+```{r}
+#Create and plot delays by airline
+total_air_delays <- air_delays %>%
+  group_by(airlines) %>%
+  summarise(tpropdelays = mean(tot_delayed))
+total_air_delays
+barplot(total_air_delays$tpropdelays, names = total_air_delays$airlines, main = "Proportion of Delayed Flights by Airline")
+```
+
+AM WEST is especially bad in San Francisco (12% more than Alaska) and Seattle (9%)
+```{r}
+#Create and plot delays by city and airline
+city_air_delays <- air_delays %>%
+  group_by(airlines, city) %>%
+  summarise(cpropdelays = mean(tot_delayed)) %>%
+  spread(airlines, cpropdelays) %>%
+  mutate(AM_WEST_Diff = (`AM WEST` - Alaska))
+city_air_delays
+barplot(city_air_delays$AM_WEST_Diff, names = city_air_delays$city, main = "AM WEST delays minus Alaska delays")
+```
+
+
+

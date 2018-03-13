@@ -1,0 +1,73 @@
+---
+title: "P2Ex3: US Trade"
+author: "Andrew Goldberg"
+date: "October 11, 2015"
+output: html_document
+---
+
+Importing and cleaning the data
+```{r}
+require(dplyr)
+require(tidyr)
+
+ustradedat <- read.csv("C:\\Users\\Andrew\\Desktop\\Cuny\\Data Acquisition\\Project 2\\Ex3USTrade\\ustrade.csv", stringsAsFactors = FALSE)
+
+colnames(ustradedat) <- c("month", "type", "2013exports", "2013imports", "2014exports", "2014imports", "2015exports", "2015imports")
+
+ustrade <- ustradedat[ustradedat$type != "",]
+
+ustrade$month[1:8] <- c("January", "January", "February", "February", "March", "March", "April", "April")
+
+ustrade[,3:8] <- apply(ustrade[,3:8], 2, function(ustrade) as.numeric(gsub(",","", ustrade)))
+
+str(ustrade)
+```
+
+
+Tidying the data
+```{r}
+Tustrade <- ustrade %>%
+  gather(yeartype, amount, 3:8) %>%
+  separate(yeartype, c("year", "trade"), -8) %>%
+  mutate(year = as.numeric(year)) %>%
+  spread(trade, amount)
+
+str(Tustrade)
+```
+
+2 of the questions posed by poster. Averages by month are pretty consistent. 
+```{r}
+#Calculate average goods export for each month over 3 year span
+Tustrade %>%
+  filter(type == "Goods") %>%
+  group_by(month) %>%
+  summarise(avggoodsexports = mean(exports))
+
+#Calculate average services import for each month over 3 year span
+Tustrade %>%
+  filter(type == "Services") %>%
+  group_by(month) %>%
+  summarise(avgservicesimports = mean(imports))
+```
+
+Our advantages in services exported is far outweighed by our negative balance of goods exported.
+```{r}
+#Check out total permuations
+Tustrade %>%
+  group_by(type) %>%
+  summarise(avgexports = mean(exports), avgimports = mean(imports))
+```
+
+And, since 2013 the difference has continued to widen.
+```{r}
+#calculate movement over years
+Tustrade %>%
+  group_by(year, type) %>%
+  summarise(avgexports = mean(exports), avgimports = mean(imports)) %>%
+  mutate(avgtradebalance = avgexports - avgimports) %>%
+  group_by %>%
+  gather(trade, amount, 3:5) %>%
+  filter(trade == "avgtradebalance") %>%
+  spread(year, amount) %>%
+  mutate(unitchange13to15 = `2015` - `2013`)
+```

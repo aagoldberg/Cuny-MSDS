@@ -1,0 +1,108 @@
+---
+title: "AGoldberg IS607 W4 Assignment"
+author: "Andrew Goldberg"
+date: "September 20, 2015"
+output: html_document
+---
+
+#4. Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression. 
+
+a. "[0-9]+\\$"
+
+[0-9] matches any digit, the '+' allows for additional digits, and the string ends with a dollar sign. And, makes me assume this chapter was written by the Swiss professor. 
+
+```{r}
+#examples
+library("stringr")
+a_ex = c("1$", "12$", "123$")
+grep(pattern = "[0-9]+\\$", a_ex, value = TRUE)
+```
+
+b. "\\b[a-z]{1,4}\\b"
+
+"\\b" creates a boundary for a word, [a-z] allows for any lowercase letter, and {1,4} allows the string to be 1 to 4 characters.
+
+```{r}
+b_ex = c("a", "word")
+grep(pattern = "\\b[a-z]{1,4}\\b", b_ex, value = TRUE)
+```
+
+c. ".*?\\.txt$"
+
+"." allows for any character; "*" allows for multiple (or zero) of those characters; the "?" makes the previous characters optional, and the "\\.txt$" means the characters (making up a file name) will be followed by ".txt". 
+
+```{r}
+c_ex = c("a.txt ab.txt", "aaa.txt", "abcd.txt", "1abc.txt", ".txt", " .txt", "asdf asdf.txt", "asdf.txt asdf.txt", "asdf.txt.asdf.txt", "b a.txt a.txt")
+grep(pattern = "a.*?\\.txt", c_ex, value = TRUE)
+```
+
+```{r}
+c_ex = c("a.txt ab.txt", "aaa.txt", "abcd.txt", "1abc.txt", ".txt", " .txt", "asdf asdf.txt", "asdf.txt asdf.txt", "asdf.txt.asdf.txt", "b a.txt a.txt")
+grep(pattern = ".*?", c_ex, value = TRUE)
+```
+
+d. "\\d{2}/\\d{2}/\\d{4}"
+
+Strings that can represent dates, with forward slashes between day (2 digits), month (2 digits), year (4 digits), conform to this pattern.
+
+```{r}
+d_ex = "07/31/1982"
+str_extract(d_ex, "\\d{2}/\\d{2}/\\d{4}")
+```
+
+
+
+e. (pattern below in code)
+
+One string in the initial brackets, followed by another string, followed by brackets with a forward slash and the backreferenced string. Typically used in languages like HTML, to say the command is finished.
+
+```{r}
+e_ex = c("<asdf>asdc</asdf>")
+str_extract(e_ex, "<(.+?)>.+?</\\1>")
+```
+
+
+
+#5. Rewrite the expressions "[0-9]+\\$" in a way that all elements are altered but the expression performs the same task
+
+```{r}
+five_ex = "234$"
+str_extract(five_ex, "[0-9]+\\$")
+str_extract(five_ex, "[[:digit:]]{1,}[$]")
+```
+
+"[:digit:]{1,}[$]"
+
+
+
+#6. Consider the mail address chunkylover52[at]aol[dot]com.
+
+a. Transform the string to a standard mail format using regular expressions
+
+```{r}
+six_ex = "chunkylover52[at]aol[dot]com"
+sixa_ans1 = str_replace(six_ex, pattern = "\\[at\\]", replacement = "\\@")
+sixa_ans2 = str_replace(sixa_ans1, pattern = "\\[dot\\]", replacement = "\\.")
+sixa_ans2
+```
+
+b. Imagine we are trying to extract the digits in the mail address. To do so we write the expression [:digit:]. Explain why this fails and correct the expression. 
+
+```{r}
+str_extract_all(six_ex, "[:digit:]{2}")
+str_extract_all(six_ex, "[[:digit:]]{2}")
+```
+
+I believe the answer, according to the text, is that it should be [[:digit:]], or else R will only search for the characters in "digit", however [:digit:] works fine for me in RStudio, as well as knitr. 
+
+Another potential answer is it fails because it will only extract one digit at a time, presuming that's not what we want. To extract two digits, one option is to follow it with {2}. 
+
+c. Instead of using the predefined character classes, we would like to use the predefined symbols to extract the digits in the mail address. To do so we write the expression "\\D". Explain why this fails and correct the expression. 
+
+```{r}
+bad = str_extract_all(six_ex, "\\D")
+good = str_extract_all(six_ex, "\\d{2}")
+good
+```
+
+"\\D" collects everything but digits, "\\d" collects digits. 
