@@ -1,0 +1,216 @@
+---
+title: "Inference for numerical data"
+output:
+  pdf_document: default
+  html_document:
+    css: ./lab.css
+    highlight: pygments
+    theme: cerulean
+---
+
+## North Carolina births
+
+In 2004, the state of North Carolina released a large data set containing 
+information on births recorded in this state. This data set is useful to 
+researchers studying the relation between habits and practices of expectant 
+mothers and the birth of their children. We will work with a random sample of 
+observations from this data set.
+
+## Exploratory analysis
+
+Load the `nc` data set into our workspace.
+
+```{r load-data}
+load("C:/Users/Andrew/Documents/R/win-library/3.2/IS606/labs/Lab5/more/nc.RData")
+getwd()
+```
+
+We have observations on 13 different variables, some categorical and some 
+numerical. The meaning of each variable is as follows.
+
+variable         | description
+---------------- | -----------
+`fage`           | father's age in years.
+`mage`           | mother's age in years.
+`mature`         | maturity status of mother.
+`weeks`          | length of pregnancy in weeks.
+`premie`         | whether the birth was classified as premature (premie) or full-term.
+`visits`         | number of hospital visits during pregnancy.
+`marital`        | whether mother is `married` or `not married` at birth.
+`gained`         | weight gained by mother during pregnancy in pounds.
+`weight`         | weight of the baby at birth in pounds.
+`lowbirthweight` | whether baby was classified as low birthweight (`low`) or not (`not low`).
+`gender`         | gender of the baby, `female` or `male`.
+`habit`          | status of the mother as a `nonsmoker` or a `smoker`.
+`whitemom`       | whether mom is `white` or `not white`.
+
+1.  What are the cases in this data set? How many cases are there in our sample?
+The cases are births recorded in North Carolina, no apparant date specified
+
+As a first step in the analysis, we should consider summaries of the data. This
+can be done using the `summary` command:
+
+```{r summary, eval=FALSE}
+summary(nc)
+```
+
+As you review the variable summaries, consider which variables are categorical 
+and which are numerical. For numerical variables, are there outliers? If you 
+aren't sure or want to take a closer look at the data, make a graph.
+
+Consider the possible relationship between a mother's smoking habit and the 
+weight of her baby. Plotting the data is a useful first step because it helps 
+us quickly visualize trends, identify strong associations, and develop research
+questions.
+
+2.  Make a side-by-side boxplot of `habit` and `weight`. What does the plot 
+highlight about the relationship between these two variables?
+
+```{r boxplots-habit-weight}
+boxplot(weight~habit, data = nc)
+```
+The means are similar and non smokers have a greater iqr stretching into heavier babies. Non smokers also have more lighter babies, which is probably a function of having a higher proportion of non smokers. 
+
+The box plots show how the medians of the two distributions compare, but we can
+also compare the means of the distributions using the following function to 
+split the `weight` variable into the `habit` groups, then take the mean of each
+using the `mean` function.
+
+```{r by-means, eval=FALSE}
+by(nc$weight, nc$habit, mean)
+```
+
+There is an observed difference, but is this difference statistically 
+significant? In order to answer this question we will conduct a hypothesis test
+.
+
+## Inference
+
+3.  Check if the conditions necessary for inference are satisfied. Note that 
+you will need to obtain sample sizes to check the conditions. You can compute 
+the group size using the same `by` command above but replacing `mean` with 
+`length`.
+
+```{r}
+library(ggplot2)
+#Presumably the sample is less than 10% of the population
+summary(nc$habit)
+#each variable has more than 30 observations
+ggplot(nc, aes(weight)) + geom_bar(binwidth = .5) + facet_wrap(~ habit) 
+#data follows fairly normal distribution, slight left skew
+```
+
+4.  Write the hypotheses for testing if the average weights of babies born to 
+smoking and non-smoking mothers are different.
+
+Ho = Average baby weights are the same among both smoking and non-smoking mothers
+Ha = Average baby weights differ between smoking and non-smoking mothers
+
+Next, we introduce a new function, `inference`, that we will use for conducting
+hypothesis tests and constructing confidence intervals. 
+
+```{r inf-weight-habit-ht, eval=FALSE, tidy=FALSE}
+inference(y = nc$weight, x = nc$habit, est = "mean", type = "ht", null = 0, 
+          alternative = "twosided", method = "theoretical")
+```
+
+Let's pause for a moment to go through the arguments of this custom function. 
+The first argument is `y`, which is the response variable that we are 
+interested in: `nc$weight`. The second argument is the explanatory variable, 
+`x`, which is the variable that splits the data into two groups, smokers and 
+non-smokers: `nc$habit`. The third argument, `est`, is the parameter we're 
+interested in: `"mean"` (other options are `"median"`, or `"proportion"`.) Next
+we decide on the `type` of inference we want: a hypothesis test (`"ht"`) or a 
+confidence interval (`"ci"`). When performing a hypothesis test, we also need 
+to supply the `null` value, which in this case is `0`, since the null 
+hypothesis sets the two population means equal to each other. The `alternative`
+hypothesis can be `"less"`, `"greater"`, or `"twosided"`. Lastly, the `method` 
+of inference can be `"theoretical"` or `"simulation"` based.
+
+5.  Change the `type` argument to `"ci"` to construct and record a confidence 
+interval for the difference between the weights of babies born to smoking and 
+non-smoking mothers.
+
+```{r inf-weight-habit-ci}
+inference(y = nc$weight, x = nc$habit, est = "mean", type = "ci", null = 0, 
+          alternative = "twosided", method = "theoretical")
+```
+
+By default the function reports an interval for ($\mu_{nonsmoker} - \mu_{smoker}$)
+. We can easily change this order by using the `order` argument:
+
+```{r inf-weight-habit, eval=FALSE, tidy=FALSE}
+inference(y = nc$weight, x = nc$habit, est = "mean", type = "ci", null = 0, 
+          alternative = "twosided", method = "theoretical", 
+          order = c("smoker","nonsmoker"))
+```
+
+* * *
+
+## On your own
+
+-   Calculate a 95% confidence interval for the average length of pregnancies 
+(`weeks`) and interpret it in context. Note that since you're doing inference 
+on a single population parameter, there is no explanatory variable, so you can 
+omit the `x` variable from the function.
+
+```{r}
+inference(y=nc$weeks, est = "mean", type = "ci", null = 0, alternative = "twosided", method = "theoretical")
+```
+The average length of pregnancies is 38 weeks, with a confidence interval of (38.2 weeks to 38.5 weeks) at the 95% confidence level. 
+
+-   Calculate a new confidence interval for the same parameter at the 90% 
+confidence level. You can change the confidence level by adding a new argument 
+to the function: `conflevel = 0.90`.
+
+```{r}
+inference(y=nc$weeks, est = "mean", type = "ci", null = 0, alternative = "twosided", method = "theoretical", conflevel = 0.90)
+```
+(38.182, 38.4873)
+
+-   Conduct a hypothesis test evaluating whether the average weight gained by 
+younger mothers is different than the average weight gained by mature mothers.
+
+```{r}
+inference(y=nc$weight, x=nc$mature, est = "mean", type = "ht", null = 0, alternative = "twosided", method = "theoretical", conflevel = 0.95)
+```
+P-value is .8526 which is larger than .05, so we will fail to reject the null
+
+-   Now, a non-inference task: Determine the age cutoff for younger and mature 
+mothers. Use a method of your choice, and explain how your method works.
+
+```{r}
+#plot mother age by maturity, looks like they split around 34/35
+plot(nc$mage, nc$mature)
+
+#checking min age for mature mothers shows 35
+min((nc[nc$mature == "mature mom",])$mage)
+
+#and checking max age for young mothers is 34
+max((nc[nc$mature == "younger mom",])$mage)
+```
+
+-   Pick a pair of numerical and categorical variables and come up with a 
+research question evaluating the relationship between these variables. 
+Formulate the question in a way that it can be answered using a hypothesis test
+and/or a confidence interval. Answer your question using the `inference` 
+function, report the statistical results, and also provide an explanation in 
+plain language.
+
+Is there a difference in the amount of weight gained between white and non-white mothers? 
+Ho: There is no difference between the weight gained by white and non-white mothers during pregnancy. (The difference of averages = 0)
+
+Ha: There is a difference between the amount of weight gained between white and non-white mothers during pregnancy (The difference of averages does not equal 0)
+
+```{r}
+inference(y=nc$gained, x=nc$whitemom, est = "mean", type = "ht", null = 0, alternative = "twosided", method = "theoretical", conflevel = 0.95)
+```
+
+White mothers have mean weight gain of 31 units (pounds?), while non-White mothers have average weight gain of 28.7 units. Using a hypothesis test with confidence at the 95% level, the p-value is .0286, so we would reject the null in favor of the alternative. In this case, that White mothers gain more weight than non-white mothers. 
+
+<div id="license">
+This is a product of OpenIntro that is released under a [Creative Commons 
+Attribution-ShareAlike 3.0 Unported](http://creativecommons.org/licenses/by-sa/3.0).
+This lab was adapted for OpenIntro by Mine &Ccedil;etinkaya-Rundel from a lab 
+written by the faculty and TAs of UCLA Statistics.
+</div>

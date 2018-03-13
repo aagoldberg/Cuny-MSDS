@@ -1,0 +1,202 @@
+---
+title: "Foundations for statistical inference - Confidence intervals"
+output:
+  pdf_document: default
+  html_document:
+    css: ./lab.css
+    highlight: pygments
+    theme: cerulean
+---
+
+## Sampling from Ames, Iowa
+
+If you have access to data on an entire population, say the size of every 
+house in Ames, Iowa, it's straight forward to answer questions like, "How big 
+is the typical house in Ames?" and "How much variation is there in sizes of 
+houses?". If you have access to only a sample of the population, as is often 
+the case, the task becomes more complicated. What is your best guess for the 
+typical size if you only know the sizes of several dozen houses? This sort of 
+situation requires that you use your sample to make inference on what your 
+population looks like.
+
+## The data
+
+In the previous lab, ``Sampling Distributions'', we looked at the population data
+of houses from Ames, Iowa. Let's start by loading that data set.
+
+```{r}
+load("more/ames.RData")
+```
+
+In this lab we'll start with a simple random sample of size 60 from the 
+population. Specifically, this is a simple random sample of size 60. Note that 
+the data set has information on many housing variables, but for the first 
+portion of the lab we'll focus on the size of the house, represented by the 
+variable `Gr.Liv.Area`.
+
+```{r sample}
+population <- ames$Gr.Liv.Area
+samp <- sample(population, 60)
+summary(samp)
+hist(samp)
+
+```
+
+1.  Describe the distribution of your sample. What would you say is the 
+"typical" size within your sample? Also state precisely what you interpreted 
+"typical" to mean.
+
+The distribution is unimodal, although it has a few right skewed outliers. The mean, which is one measure of "typicalness", is 1565. I would interpret "typical" to mean a value that can give the best description of most of the data points in the sample, and the mean, which serves as a center point closest to most other data, functions well in that role. 
+
+2.  Would you expect another student's distribution to be identical to yours? 
+Would you expect it to be similar? Why or why not?
+
+Because it is a sample, there will be some fluctuation in the distribution, as an other student will likely get a different set of numbers. However, because the sample is over 30, we would expect both distributions to roughly estimate the normal distribution, and be fairly similar. 
+
+## Confidence intervals
+
+One of the most common ways to describe the typical or central value of a 
+distribution is to use the mean. In this case we can calculate the mean of the 
+sample using,
+
+```{r sample-mean}
+sample_mean <- mean(samp)
+```
+
+Return for a moment to the question that first motivated this lab: based on 
+this sample, what can we infer about the population? Based only on this single 
+sample, the best estimate of the average living area of houses sold in Ames 
+would be the sample mean, usually denoted as $\bar{x}$ (here we're calling it 
+`sample_mean`). That serves as a good *point estimate* but it would be useful 
+to also communicate how uncertain we are of that estimate. This can be 
+captured by using a *confidence interval*.
+
+We can calculate a 95% confidence interval for a sample mean by adding and 
+subtracting 1.96 standard errors to the point estimate (See Section 4.2.3 if 
+you are unfamiliar with this formula).
+
+```{r ci, eval=FALSE}
+se <- sd(samp) / sqrt(60)
+lower <- sample_mean - 1.96 * se
+upper <- sample_mean + 1.96 * se
+c(lower, upper)
+```
+
+This is an important inference that we've just made: even though we don't know 
+what the full population looks like, we're 95% confident that the true 
+average size of houses in Ames lies between the values *lower* and *upper*. 
+There are a few conditions that must be met for this interval to be valid.
+
+3.  For the confidence interval to be valid, the sample mean must be normally 
+distributed and have standard error $s / \sqrt{n}$. What conditions must be 
+met for this to be true?
+
+The sample must be randomly selected, over roughly 30 elements, and will be dependent if it is less than 10% of the population. 
+## Confidence levels
+
+4.  What does "95% confidence" mean? If you're not sure, see Section 4.2.2.
+It means roughly 95% of the time the population parameter will be caught by the confidence interval centered on the sample mean.  
+
+In this case we have the luxury of knowing the true population mean since we 
+have data on the entire population. This value can be calculated using the 
+following command:
+
+```{r pop-mean, eval=FALSE}
+mean(population)
+```
+
+5.  Does your confidence interval capture the true average size of houses in 
+Ames? If you are working on this lab in a classroom, does your neighbor's 
+interval capture this value? 
+
+Yes, the confidence interval of (1406, 1723) captures the population parameter of 1499.69. 
+
+
+6.  Each student in your class should have gotten a slightly different 
+confidence interval. What proportion of those intervals would you expect to 
+capture the true population mean? Why? If you are working in this lab in a 
+classroom, collect data on the intervals created by other students in the 
+class and calculate the proportion of intervals that capture the true 
+population mean.
+
+I would expect 95% of those intervals to capture the population mean, because we set those expectations when choosing 1.96 standard deviations away from the sample mean as our confidence interval. 
+
+
+```{r set-up}
+samp_mean <- rep(NA, 50)
+samp_sd <- rep(NA, 50)
+n <- 60
+```
+
+Now we're ready for the loop where we calculate the means and standard deviations of 50 random samples.
+
+```{r loop}
+for(i in 1:50){
+  samp <- sample(population, n) # obtain a sample of size n = 60 from the population
+  samp_mean[i] <- mean(samp)    # save sample mean in ith element of samp_mean
+  samp_sd[i] <- sd(samp)        # save sample sd in ith element of samp_sd
+}
+```
+
+Lastly, we construct the confidence intervals.
+
+```{r ci50, eval=FALSE}
+lower_vector <- samp_mean - 1.96 * samp_sd / sqrt(n) 
+upper_vector <- samp_mean + 1.96 * samp_sd / sqrt(n)
+```
+
+Lower bounds of these 50 confidence intervals are stored in `lower_vector`, 
+and the upper bounds are in `upper_vector`. Let's view the first interval.
+
+```{r first-interval, eval=FALSE}
+c(lower_vector[1], upper_vector[1])
+```
+
+* * *
+
+## On your own
+
+-   Using the following function (which was downloaded with the data set), 
+    plot all intervals. What proportion of your confidence intervals include 
+    the true population mean? Is this proportion exactly equal to the 
+    confidence level? If not, explain why.
+
+```{r plot-ci, eval=FALSE}
+plot_ci(lower_vector, upper_vector, mean(population))
+```
+
+2 of 50 confidence intervals did not capture the population mean, so roughly 96% were captured, very close to 95%. The 95% confidence interval is only an estimate, but with increasingly large samples it should approach 95%. Of course, with 50 intervals, its technically impossible to get 95% perfectly, and this came as close as possible.  
+
+```{r}
+1-(2/50)
+```
+
+-   Pick a confidence level of your choosing, provided it is not 95%. What is 
+    the appropriate critical value?
+    
+I choose 99%, which extends to 2.58 standard deviations towards both tails. 
+
+
+-   Calculate 50 confidence intervals at the confidence level you chose in the 
+    previous question. You do not need to obtain new samples, simply calculate 
+    new intervals based on the sample means and standard deviations you have 
+    already collected. Using the `plot_ci` function, plot all intervals and 
+    calculate the proportion of intervals that include the true population 
+    mean. How does this percentage compare to the confidence level selected for
+    the intervals?
+    
+```{r}
+se <- sd(samp) / sqrt(60)
+lower_vector <- samp_mean - 2.58 * samp_sd / sqrt(n) 
+upper_vector <- samp_mean + 2.58 * samp_sd / sqrt(n)
+c(lower_vector[1], upper_vector[1])
+plot_ci(lower_vector, upper_vector, mean(population))
+```
+All intervals capture the population mean (although this appears to continue to change when knitted). This is an improvement over 95% confidence, which missed 2 or roughly 4%. 
+
+
+<div id="license">
+This is a product of OpenIntro that is released under a [Creative Commons 
+Attribution-ShareAlike 3.0 Unported](http://creativecommons.org/licenses/by-sa/3.0).
+This lab was written for OpenIntro by Andrew Bray and Mine &Ccedil;etinkaya-Rundel.
+</div>

@@ -1,0 +1,115 @@
+---
+title: 'AGoldberg IS606 Lab2: Probability'
+output:
+  pdf_document: default
+  html_document:
+    highlight: pygments
+    theme: cerulean
+---
+
+## Hot Hands
+
+```{r load-data, eval=TRUE}
+library('IS606')
+load("C:/Users/Andrew/Documents/R/Lab2/more/kobe.RData")
+head(kobe)
+```
+
+
+1.  What does a streak length of 1 mean, i.e. how many hits and misses are in a 
+    streak of 1? What about a streak length of 0?
+
+Answer: A streak of length 1 includes a hit and a miss. A streak of length 0 is just a miss. 
+
+
+2.  Describe the distribution of Kobe's streak lengths from the 2009 NBA finals. 
+    What was his typical streak length? How long was his longest streak of baskets?
+    
+```{r calc-streak-kobe, eval=TRUE}
+kobe_streak <- calc_streak(kobe$basket)
+barplot(table(kobe_streak))
+summary(kobe_streak)
+```
+
+Answer: The distribution of shooting streaks has a righttailed skew (although it's a little odd to assign a skew to a bar chart?). Kobe's mean streak length was less than one (.76), and a majority of his streaks were of length 0 or 1, with a max of 4. 
+
+3.  In your simulation of flipping the unfair coin 100 times, how many flips 
+    came up heads?
+
+```{r sim-unfair-coin, eval=TRUE}
+outcomes <- c("heads", "tails")
+sim_unfair_coin <- sample(outcomes, size = 100, replace = TRUE, prob = c(0.2, 0.8))
+table(sim_unfair_coin)
+```
+
+Answer: 26 heads, 74 tails
+
+
+4.  What change needs to be made to the `sample` function so that it reflects a 
+    shooting percentage of 45%? Make this adjustment, then run a simulation to 
+    sample 133 shots. Assign the output of this simulation to a new object called
+    `sim_basket`.
+
+Need to change the probability distribution to .45 hit / .55 miss
+```{r sim-shots, eval=TRUE}
+outcomes <- c("H", "M")
+sim_basket <- sample(outcomes, size = 133, replace = TRUE, prob = c(.45, .55))
+table(sim_basket)
+```
+
+* * *
+
+## On your own
+
+### Comparing Kobe Bryant to the Independent Shooter
+
+Using `calc_streak`, compute the streak lengths of `sim_basket`.
+
+-   Describe the distribution of streak lengths. What is the typical streak 
+    length for this simulated independent shooter with a 45% shooting percentage?
+    How long is the player's longest streak of baskets in 133 shots?
+
+```{r kobe-independent, eval=TRUE}
+ind_streak <- calc_streak(sim_basket)
+barplot(table(ind_streak))
+summary(ind_streak)
+summary(kobe_streak)
+sd(ind_streak)
+sd(kobe_streak)
+```
+
+The independent shooter's distribution is likewise very right-tail skewed, although it has fewer 1 and 3 hit streaks than Kobe, but at least 1 5 hit streak. The independent shooter had a lower mean streak count (.63) compared to Kobe (.76), as well as a slightly shorter standard deviation (.95 sim vs .99 Kobe).
+
+-   If you were to run the simulation of the independent shooter a second time, 
+    how would you expect its streak distribution to compare to the distribution 
+    from the question above? Exactly the same? Somewhat similar? Totally 
+    different? Explain your reasoning.
+    
+I would expect it to be very if not somewhat similar. With 45% accuracy, over a majority of the shots should be misses, and streaks should be increasingly difficult to come by, as is depicted in the current distribution.
+
+```{r sim2, eval=TRUE}
+outcomes <- c("H", "M")
+sim_basket2 <- sample(outcomes, size = 133, replace = TRUE, prob = c(.45, .55))
+table(sim_basket2)
+ind_streak2 <- calc_streak(sim_basket2)
+barplot(table(ind_streak2))
+summary(ind_streak2)
+sd(ind_streak2)
+```
+
+And, it is!
+
+-   How does Kobe Bryant's distribution of streak lengths compare to the 
+    distribution of streak lengths for the simulated shooter? Using this 
+    comparison, do you have evidence that the hot hand model fits Kobe's 
+    shooting patterns? Explain.
+
+Comparing Kobe's streak lengths against both of my simulations of the independent shooter shows no apparent statistical improvements in Kobe's game overall, other than he had more 1 and 3 hit streaks than either of the simulations. Interestingly, he only made 30% of his 3 pointers too, compared to his 2009 percentage of .351, which many people often look at as especially difficult and assign greater value. With better R skills, we could also look into streaks that have one or two misses interspersed among many hits. Other ways of looking at hothandedness might involve examing kobe's performance when the score is tight and the phsychological pressure is higher, and perhaps, along with three pointers, giving more weight to harder 2pt jump shots.(The above answer has more comparison evidence as well)
+
+```{r kobe-threepts, eval=TRUE}
+require(stringr)
+threept <- subset(kobe, str_detect(string = kobe$description, pattern = c("3pt", "three point")))
+table(threept$basket)
+```
+
+
